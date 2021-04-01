@@ -2,7 +2,10 @@ use std::env;
 use std::process;
 use std::error;
 
+mod token;
+
 fn main() {
+    use token::TokenKind;
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
@@ -11,51 +14,52 @@ fn main() {
     }
 
     let input = args[1].as_bytes();
-    let mut pos = 0;
+    let tokens = token::Token::tokenize(input).unwrap();
     println!(".intel_syntax noprefix");
     println!(".global main");
     println!("main:");
 
-    // 最初の数字を取得
-    let (num, new_pos) = get_number(input, pos).unwrap();
-    pos = new_pos;
-    println!("  mov rax, {}", num);
-    while pos < input.len() {
-        match input[pos] {
-            b'+' => {
-                pos += 1;
-                let (num, new_pos) = get_number(input, pos).unwrap_or_else(|err| {
-                    eprintln!("Parse Error: {}", err);
-                    process::exit(1);
-                });
-                pos = new_pos;
-                println!("  add rax, {}", num);
+    let mut token = tokens.into_iter();
+    match token.next().unwrap().val {
+        TokenKind::Num(num) => {
+            println!("  mov rax, {}", num);
+        },
+        _ => {
+            eprintln!("Not number");
+            process::exit(1);
+        }
+    }
+
+    loop {
+        match token.next().unwrap().val {
+            TokenKind::Plus => {
+                match token.next().unwrap().val {
+                    TokenKind::Num(num) => {
+                        println!("  add rax, {}", num);
+                    },
+                    _ => {
+                        eprintln!("Not Number");
+                        process::exit(1);
+                    },
+                }
             },
-            b'-' => {
-                pos += 1;
-                let (num, new_pos) = get_number(input, pos).unwrap_or_else(|err| {
-                    eprintln!("Parse Error: {}", err);
-                    process::exit(1);
-                });
-                pos = new_pos;
-                println!("  sub rax, {}", num);
-            }
-            _ => eprintln!("Unexpected Character: {}", input[pos]),
+            TokenKind::Minus => {
+                match token.next().unwrap().val {
+                    TokenKind::Num(num) => {
+                        println!("  sub rax, {}", num);
+                    },
+                    _ => {
+                        eprintln!("Not Number");
+                        process::exit(1);
+                    },
+                }
+            },
+            TokenKind::EOF => break,
+            _ => {
+                eprintln!("Not Number");
+                process::exit(1);
+            },
         }
     }
     println!("  ret")
-}
-
-fn get_number(input: &[u8], mut pos: usize) -> Result<(i32, usize) , Box<dyn error::Error>> {
-    let start = pos;
-    while pos < input.len() {
-        match input[pos] {
-            b'0'..=b'9' => pos += 1,
-            _ => break,
-        }
-    }
-    let str = String::from_utf8(input[start..pos].to_vec())?;
-    let num: i32 = str.parse()?;
-
-    Ok((num, pos))
 }
