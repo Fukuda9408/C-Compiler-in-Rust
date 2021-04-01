@@ -1,14 +1,18 @@
 use std::error;
 use std::fmt;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Annot<T> {
-    val: T
+    val: T,
+    pos: usize,
+    str: String,
 }
 impl<T> Annot<T> {
-    fn new(val: T) -> Self {
+    fn new(val: T, pos: usize, str: String) -> Self {
         Annot {
-            val
+            val,
+            pos,
+            str
         }
     }
 }
@@ -22,21 +26,22 @@ pub enum TokenizeErrorKind {
 type TokenizeError = Annot<TokenizeErrorKind>;
 
 impl TokenizeError {
-    fn invalid_char(c: char) -> Self {
-        Self::new(TokenizeErrorKind::InvalidChar(c))
+    fn invalid_char(c: char, pos: usize, str: String) -> Self {
+        Self::new(TokenizeErrorKind::InvalidChar(c), pos, str)
     }
 
-    fn eof() -> Self {
-        Self::new(TokenizeErrorKind::Eof)
+    fn eof(pos: usize, str: String) -> Self {
+        Self::new(TokenizeErrorKind::Eof, pos, str)
     }
 }
 
 impl fmt::Display for TokenizeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use TokenizeErrorKind::*;
+        let space = " ".repeat(self.pos);
         match self.val {
-            InvalidChar(c) => write!(f, "Invalid char '{}'", c),
-            Eof => write!(f, "End of File"),
+            InvalidChar(c) => write!(f, "{}\n{}^ Invalid char '{}'", self.str, space, c),
+            Eof => write!(f, "{}\n{}^ End of File", self.str, space),
         }
     }
 }
@@ -75,7 +80,7 @@ impl Token {
                 }
             };
         }
-        
+
         while pos < str.len() {
             match str[pos] {
                 b' ' | b'\t' | b'\n' => pos += 1,
@@ -87,7 +92,7 @@ impl Token {
                     result.push(token);
                     pos = new_pos;
                 },
-                b => return Err(TokenizeError::invalid_char(b as char)),
+                b => return Err(TokenizeError::invalid_char(b as char, pos, String::from_utf8(str.to_vec()).unwrap())),
             }
         }
         result.push(Token::new(TokenKind::EOF));

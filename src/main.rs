@@ -14,7 +14,13 @@ fn main() {
     }
 
     let input = args[1].as_bytes();
-    let tokens = token::Token::tokenize(input).unwrap();
+    let tokens = match token::Token::tokenize(input) {
+        Ok(tk) => tk,
+        Err(e) => {
+            eprintln!("{}", e);
+            process::exit(1);
+        }
+    };
     println!(".intel_syntax noprefix");
     println!(".global main");
     println!("main:");
