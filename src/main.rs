@@ -1,11 +1,12 @@
 use std::env;
 use std::process;
-use std::error;
 
 mod token;
+mod node;
 
 fn main() {
-    use token::TokenKind;
+    use token::Token;
+    use node::Ast;
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
@@ -14,7 +15,7 @@ fn main() {
     }
 
     let input = args[1].as_bytes();
-    let tokens = match token::Token::tokenize(input) {
+    let tokens = match Token::tokenize(input) {
         Ok(tk) => tk,
         Err(e) => {
             eprintln!("{}", e);
@@ -25,47 +26,8 @@ fn main() {
     println!(".global main");
     println!("main:");
 
-    let mut token = tokens.into_iter();
-    match token.next().unwrap().val {
-        TokenKind::Num(num) => {
-            println!("  mov rax, {}", num);
-        },
-        _ => {
-            eprintln!("Not number");
-            process::exit(1);
-        }
-    }
-
-    loop {
-        match token.next().unwrap().val {
-            TokenKind::Plus => {
-                match token.next().unwrap().val {
-                    TokenKind::Num(num) => {
-                        println!("  add rax, {}", num);
-                    },
-                    _ => {
-                        eprintln!("Not Number");
-                        process::exit(1);
-                    },
-                }
-            },
-            TokenKind::Minus => {
-                match token.next().unwrap().val {
-                    TokenKind::Num(num) => {
-                        println!("  sub rax, {}", num);
-                    },
-                    _ => {
-                        eprintln!("Not Number");
-                        process::exit(1);
-                    },
-                }
-            },
-            TokenKind::EOF => break,
-            _ => {
-                eprintln!("Not Number");
-                process::exit(1);
-            },
-        }
-    }
-    println!("  ret")
+    let mut token = tokens.into_iter().peekable();
+    let mut ast = Ast::expr(&mut token);
+    // println!("{:?}", tokens);
+    println!("{:?}", ast);
 }

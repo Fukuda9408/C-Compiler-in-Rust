@@ -1,36 +1,44 @@
 use std::error;
 use std::fmt;
 
-#[derive(Debug)]
-pub struct Annot<T> {
-    val: T,
-    pos: usize,
-    str: String,
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum TokenKind {
+    Num(i32),
+    Plus,
+    Minus,
+    LParen,
+    RParen,
+    Asterisk,
+    Slash,
+    EOF,
 }
-impl<T> Annot<T> {
-    fn new(val: T, pos: usize, str: String) -> Self {
-        Annot {
-            val,
-            pos,
-            str
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub enum TokenizeErrorKind {
     InvalidChar(char),
     Eof
 }
 
-type TokenizeError = Annot<TokenizeErrorKind>;
+#[derive(Debug)]
+pub struct TokenizeError {
+    val: TokenizeErrorKind,
+    pos: usize,
+    str: String,
+}
 
 impl TokenizeError {
-    fn invalid_char(c: char, pos: usize, str: String) -> Self {
+    fn new(val: TokenizeErrorKind, pos: usize, str: String) -> Self {
+        Self {
+            val,
+            pos,
+            str
+        }
+    }
+
+    pub fn invalid_char(c: char, pos: usize, str: String) -> Self {
         Self::new(TokenizeErrorKind::InvalidChar(c), pos, str)
     }
 
-    fn eof(pos: usize, str: String) -> Self {
+    pub fn eof(pos: usize, str: String) -> Self {
         Self::new(TokenizeErrorKind::Eof, pos, str)
     }
 }
@@ -48,22 +56,17 @@ impl fmt::Display for TokenizeError {
 
 impl error::Error for TokenizeError {}
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum TokenKind {
-    Num(i32),
-    Plus,
-    Minus,
-    EOF,
-}
-
+#[derive(Debug, Clone, Copy)]
 pub struct Token {
     pub val: TokenKind,
+    pub pos: usize,
 }
 
 impl Token {
-    fn new(val: TokenKind) -> Self {
+    fn new(val: TokenKind, pos: usize) -> Self {
         Token {
-            val
+            val,
+            pos
         }
     }
 
@@ -74,7 +77,7 @@ impl Token {
         macro_rules! tokenize_except_num {
             ($token_kind:expr) => {
                 {
-                    let token = Token::new($token_kind);
+                    let token = Token::new($token_kind, pos);
                     result.push(token);
                     pos += 1;
                 }
@@ -86,17 +89,19 @@ impl Token {
                 b' ' | b'\t' | b'\n' => pos += 1,
                 b'+' => tokenize_except_num!(TokenKind::Plus),
                 b'-' => tokenize_except_num!(TokenKind::Minus),
+                b')' => tokenize_except_num!(TokenKind::RParen),
+                b'(' => tokenize_except_num!(TokenKind::LParen),
+                b'*' => tokenize_except_num!(TokenKind::Asterisk),
+                b'/' => tokenize_except_num!(TokenKind::Slash),
                 b'0'..=b'9' => {
                     let (num, new_pos) = Token::tokenize_number(str, pos)?;
-                    let token = Token::new(TokenKind::Num(num));
+                    let token = Token::new(TokenKind::Num(num), new_pos);
                     result.push(token);
                     pos = new_pos;
                 },
                 b => return Err(TokenizeError::invalid_char(b as char, pos, String::from_utf8(str.to_vec()).unwrap())),
             }
         }
-        result.push(Token::new(TokenKind::EOF));
-
         Ok(result)
     }
 
@@ -114,6 +119,4 @@ impl Token {
                     .unwrap();
         Ok((num, pos))
     }
-
-
 }
