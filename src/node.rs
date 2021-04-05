@@ -138,7 +138,7 @@ impl Ast {
                         match_token!(TokenKind::Minus, pos) => {
                             //   mul ("+" mul | "-" mul) *
                             //                   ^
-                            let r_ast = Ast::primary(tokens)?;
+                            let r_ast = Ast::mul(tokens)?;
                             //   mul ("+" mul | "-" mul) *
                             //                        ^
                             l_ast = Ast::node(NodeKind::Sub, l_ast, r_ast);
