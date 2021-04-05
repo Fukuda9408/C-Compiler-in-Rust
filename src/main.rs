@@ -27,7 +27,16 @@ fn main() {
     println!("main:");
 
     let mut token = tokens.into_iter().peekable();
-    let mut ast = Ast::expr(&mut token);
-    // println!("{:?}", tokens);
-    println!("{:?}", ast);
+    let ast = match Ast::expr(&mut token) {
+        Ok(ast) => ast,
+        Err(e) => {
+            eprintln!("{}", e);
+            process::exit(1);
+        }
+    };
+
+    Ast::gen(ast);
+
+    println!("  pop rax");
+    println!("  ret");
 }

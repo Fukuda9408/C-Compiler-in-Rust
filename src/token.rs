@@ -102,6 +102,7 @@ impl Token {
                 b => return Err(TokenizeError::invalid_char(b as char, pos, String::from_utf8(str.to_vec()).unwrap())),
             }
         }
+        result.push(Token::new(TokenKind::EOF, pos));
         Ok(result)
     }
 

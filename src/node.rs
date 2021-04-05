@@ -8,6 +8,7 @@ use std::fmt;
 pub enum AstErrorKind {
     UnclosedParenth,
     NotPatternMatching,
+    EoF,
 }
 
 #[derive(Debug)]
@@ -31,6 +32,10 @@ impl AstError {
     pub fn not_pattern_matching(pos: usize) -> Self {
         Self::new(AstErrorKind::NotPatternMatching, pos)
     }
+
+    pub fn eof(pos: usize) -> Self {
+        Self::new(AstErrorKind::EoF, pos)
+    }
 }
 
 impl fmt::Display for AstError {
@@ -39,6 +44,7 @@ impl fmt::Display for AstError {
         match self.val {
             UnclosedParenth => write!(f, "Unclosed"),
             NotPatternMatching => write!(f, "Not Pattern"),
+            EoF => write!(f, "EoF in imcomplement position"),
         }
     }
 }
@@ -102,7 +108,6 @@ impl Ast {
             rhs: Box::new(rhs),
         }
     }
-
     // expr    = mul ("+" mul | "-" mul) *
     // mul     = primary ("*" primary | "/" primary)*
     // primary = num | "(" expr ")"
@@ -116,8 +121,8 @@ impl Ast {
         loop {
             //   mul ("+" mul | "-" mul) *
             //     ^
-            match tokens.next().unwrap() {
-                match_token!(TokenKind::RParen, pos) => {
+            match tokens.peek().unwrap() {
+                match_token!(TokenKind::Plus, pos) | match_token!(TokenKind::Minus, pos) => {
                     //   mul ("+" mul | "-" mul) *
                     //         ^
                     match tokens.next().unwrap() {
@@ -137,7 +142,7 @@ impl Ast {
                             //                        ^
                             l_ast = Ast::node(NodeKind::Sub, l_ast, r_ast);
                         },
-                        match_token_nothing!(pos) => return Err(AstError::not_pattern_matching(pos)),
+                        _ => unreachable!(),
                     }
                 },
                 match_token_nothing!(pos) => return Ok(l_ast)
@@ -155,10 +160,8 @@ impl Ast {
         loop {
             // primary ("*" primary | "/" primary)*
             //       ^
-            match tokens.next().unwrap() {
-                match_token!(TokenKind::RParen, pos) => {
-                    // primary ("*" primary | "/" primary)
-                    //         ^
+            match tokens.peek().unwrap() {
+                match_token!(TokenKind::Asterisk, pos) | match_token!(TokenKind::Slash, pos) => {
                     match tokens.next().unwrap() {
                         match_token!(TokenKind::Asterisk, pos) => {
                             // primary ("*" primary | "/" primary)
@@ -176,7 +179,7 @@ impl Ast {
                             //                                  ^
                             l_ast = Ast::node(NodeKind::Div, l_ast, r_ast);
                         },
-                        match_token_nothing!(pos) => return Err(AstError::not_pattern_matching(pos)),
+                        _ => unreachable!(),
                     }
                 },
                 match_token_nothing!(pos) => return Ok(l_ast)
@@ -200,12 +203,40 @@ impl Ast {
                 //        ^
                 match tokens.next().unwrap() {
                     match_token!(TokenKind::RParen, pos) => Ok(ex),
+                    match_token!(TokenKind::EOF, pos) => Err(AstError::eof(pos)),
                     match_token_nothing!(pos) => Err(AstError::unclosed_parenth(pos)),
                 }
             },
+            match_token!(TokenKind::EOF, pos) => Err(AstError::eof(pos)),
             match_token_nothing!(pos) => Err(AstError::not_pattern_matching(pos)),
         }
     }
 
-
+    pub fn gen(ast: Ast) {
+        match ast {
+            Self::Num(num) => {
+                println!("  push {}", num);
+            },
+            Self::Node {
+                node_kind,
+                lhs,
+                rhs,
+            } => {
+                Self::gen(*lhs);
+                Self::gen(*rhs);
+                println!("  pop rdi");
+                println!("  pop rax");
+                match node_kind {
+                    NodeKind::Add => println!("  add rax, rdi"),
+                    NodeKind::Sub => println!("  sub rax, rdi"),
+                    NodeKind::Mul => println!("  imul rax, rdi"),
+                    NodeKind::Div => {
+                        println!("  cqo");
+                        println!("  idiv rdi");
+                    }
+                }
+                println!("  push rax");
+            }
+        }
+    }
 }
