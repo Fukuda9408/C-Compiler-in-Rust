@@ -30,8 +30,8 @@ assert "1 + 5 >= 7" 0
 assert "1 + 5 <= 5" 0
 assert "1 + 5 <= 6" 1
 
-assert "1 + 5 = 6" 1
-assert "1 + 5 = 5" 0
+assert "1 + 5 == 6" 1
+assert "1 + 5 == 5" 0
 assert "1 + 5 != 6" 0
 assert "1 + 5 != 5" 1
 
