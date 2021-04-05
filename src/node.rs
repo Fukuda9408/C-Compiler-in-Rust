@@ -109,7 +109,8 @@ impl Ast {
         }
     }
     // expr    = mul ("+" mul | "-" mul) *
-    // mul     = primary ("*" primary | "/" primary)*
+    // mul     = unary ("*" unary | "/" unary)*
+    // unary   = ("+" | "-")? primary
     // primary = num | "(" expr ")"
     pub fn expr<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Ast, AstError>
     where
@@ -154,29 +155,29 @@ impl Ast {
     where
         Tokens: Iterator<Item = Token>,
     {
-        //   primary ("*" primary | "/" primary)*
-        // ^
-        let mut l_ast = Ast::primary(tokens)?;
+        //   unary ("*" unary | "/" unary)*
+        //  ^
+        let mut l_ast = Ast::unary(tokens)?;
         loop {
-            // primary ("*" primary | "/" primary)*
-            //       ^
+            // unary ("*" unary | "/" unary)*
+            //     ^
             match tokens.peek().unwrap() {
                 match_token!(TokenKind::Asterisk, pos) | match_token!(TokenKind::Slash, pos) => {
                     match tokens.next().unwrap() {
                         match_token!(TokenKind::Asterisk, pos) => {
-                            // primary ("*" primary | "/" primary)
-                            //           ^
-                            let r_ast = Ast::primary(tokens)?;
-                            // primary ("*" primary | "/" primary)
-                            //                    ^
+                            // unary ("*" unary | "/" unary)
+                            //         ^
+                            let r_ast = Ast::unary(tokens)?;
+                            // unary ("*" unary | "/" unary)
+                            //                ^
                             l_ast = Ast::node(NodeKind::Mul, l_ast, r_ast);
                         },
                         match_token!(TokenKind::Slash, pos) => {
-                            // primary ("*" primary | "/" primary)
-                            //                         ^
-                            let r_ast = Ast::primary(tokens)?;
-                            // primary ("*" primary | "/" primary)
-                            //                                  ^
+                            // unary ("*" unary | "/" unary)
+                            //                     ^
+                            let r_ast = Ast::unary(tokens)?;
+                            // unary ("*" unary | "/" unary)
+                            //                            ^
                             l_ast = Ast::node(NodeKind::Div, l_ast, r_ast);
                         },
                         _ => unreachable!(),
@@ -184,6 +185,34 @@ impl Ast {
                 },
                 match_token_nothing!(pos) => return Ok(l_ast)
             }
+        }
+    }
+
+    fn unary<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Ast, AstError>
+    where
+        Tokens: Iterator<Item = Token>,
+    {
+        //   ("+" | "-")? primary
+        //  ^
+        match tokens.peek().unwrap().val {
+            TokenKind::Plus | TokenKind::Minus => {
+                match tokens.next().unwrap() {
+                    //   ("+" | "-")? primary
+                    //     ^
+                    match_token!(TokenKind::Plus, pos) => return Ast::primary(tokens),
+                    //   ("+" | "-")? primary
+                    //           ^
+                    match_token!(TokenKind::Minus, pos) => {
+                        let l_ast = Ast::num(0);
+                        let r_ast = Ast::primary(tokens)?;
+                    //   ("+" | "-")? primary
+                    //                      ^
+                        Ok(Ast::node(NodeKind::Sub, l_ast, r_ast))
+                    },
+                    _ => unreachable!(),
+                }
+            },
+            _ => return Ast::primary(tokens),
         }
     }
 
