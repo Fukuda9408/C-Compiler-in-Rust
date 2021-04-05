@@ -10,6 +10,12 @@ pub enum TokenKind {
     RParen,
     Asterisk,
     Slash,
+    Large,      // >
+    Small,      // <
+    EqualSmall, // <=
+    EqualLarge, // >=
+    Equal,      // ==
+    NotEqual,   // !=
     EOF,
 }
 #[derive(Debug, Clone, Copy)]
@@ -93,6 +99,34 @@ impl Token {
                 b'(' => tokenize_except_num!(TokenKind::LParen),
                 b'*' => tokenize_except_num!(TokenKind::Asterisk),
                 b'/' => tokenize_except_num!(TokenKind::Slash),
+                b'<' => {
+                    pos += 1;
+                    match str[pos] {
+                        b'=' => tokenize_except_num!(TokenKind::EqualSmall),
+                        _ => result.push(Token::new(TokenKind::Small, pos)),
+                    }
+                },
+                b'>' => {
+                    pos += 1;
+                    match str[pos] {
+                        b'=' => tokenize_except_num!(TokenKind::EqualLarge),
+                        _ => result.push(Token::new(TokenKind::Large, pos)),
+                    }
+                },
+                b'=' => {
+                    pos += 1;
+                    match str[pos] {
+                        b'=' => tokenize_except_num!(TokenKind::Equal),
+                        b => return Err(TokenizeError::invalid_char(b as char, pos, String::from_utf8(str.to_vec()).unwrap())),
+                    }
+                },
+                b'!' => {
+                    pos += 1;
+                    match str[pos] {
+                        b'=' => tokenize_except_num!(TokenKind::NotEqual),
+                        b => return Err(TokenizeError::invalid_char(b as char, pos, String::from_utf8(str.to_vec()).unwrap())),
+                    }
+                },
                 b'0'..=b'9' => {
                     let (num, new_pos) = Token::tokenize_number(str, pos)?;
                     let token = Token::new(TokenKind::Num(num), new_pos);
@@ -119,5 +153,9 @@ impl Token {
                     .parse()
                     .unwrap();
         Ok((num, pos))
+    }
+
+    fn tokenize_symbol(input: &[u8], mut pos: usize, symbol: &str) {
+
     }
 }

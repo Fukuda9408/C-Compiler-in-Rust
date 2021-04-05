@@ -22,9 +22,6 @@ fn main() {
             process::exit(1);
         }
     };
-    println!(".intel_syntax noprefix");
-    println!(".global main");
-    println!("main:");
 
     let mut token = tokens.into_iter().peekable();
     let ast = match Ast::expr(&mut token) {
@@ -34,6 +31,10 @@ fn main() {
             process::exit(1);
         }
     };
+
+    println!(".intel_syntax noprefix");
+    println!(".global main");
+    println!("main:");
 
     Ast::gen(ast);
 

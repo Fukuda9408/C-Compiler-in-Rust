@@ -57,6 +57,12 @@ pub enum NodeKind {
     Sub,
     Mul,
     Div,
+    Large,      // >
+    Small,      // <
+    EqualSmall, // <=
+    EqualLarge, // >=
+    Equal,      // ==
+    NotEqual,   // !=
 }
 
 #[derive(Debug)]
@@ -108,11 +114,82 @@ impl Ast {
             rhs: Box::new(rhs),
         }
     }
-    // expr    = mul ("+" mul | "-" mul) *
-    // mul     = unary ("*" unary | "/" unary)*
-    // unary   = ("+" | "-")? primary
-    // primary = num | "(" expr ")"
+    // expr         = equality
+    // equality     = relational ("==" relational | "!=" relational)*
+    // relationl    = add ("<" add | ">" add | "<=" add | ">=" add)*
+    // add           = mul ("+" mul | "-" mul) *
+    // mul          = unary ("*" unary | "/" unary)*
+    // unary        = ("+" | "-")? primary
+    // primary      = num | "(" expr ")"
     pub fn expr<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Ast, AstError>
+    where
+        Tokens: Iterator<Item = Token>,
+    {
+        Ast::equality(tokens)
+    }
+
+    fn equality<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Ast, AstError>
+    where
+        Tokens: Iterator<Item = Token>,
+    {
+        let mut l_ast = Ast::relational(tokens)?;
+        loop {
+            match tokens.peek().unwrap() {
+                match_token!(TokenKind::Equal, pos) | match_token!(TokenKind::NotEqual, pos) => {
+                    match tokens.next().unwrap() {
+                        match_token!(TokenKind::Equal, pos) => {
+                            let r_ast = Ast::relational(tokens)?;
+                            l_ast = Ast::node(NodeKind::Equal, l_ast, r_ast);
+                        },
+                        match_token!(TokenKind::NotEqual, pos) => {
+                            let r_ast = Ast::relational(tokens)?;
+                            l_ast = Ast::node(NodeKind::NotEqual, l_ast, r_ast);
+                        },
+                        _ => unreachable!(),
+                    }
+                },
+                match_token_nothing!(pos) => return Ok(l_ast)
+            }
+        }
+    }
+
+    fn relational<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Ast, AstError>
+    where
+        Tokens: Iterator<Item = Token>,
+    {
+        let mut l_ast = Ast::add(tokens)?;
+        loop {
+            match tokens.peek().unwrap() {
+                match_token!(TokenKind::Small, pos) | match_token!(TokenKind::Large, pos)
+                | match_token!(TokenKind::EqualSmall, pos) | match_token!(TokenKind::EqualLarge, pos) => {
+                    match tokens.next().unwrap() {
+                        match_token!(TokenKind::Small, pos) => {
+                            let r_ast = Ast::add(tokens)?;
+                            l_ast = Ast::node(NodeKind::Small, l_ast, r_ast);
+                        },
+                        match_token!(TokenKind::Large, pos) => {
+                            let r_ast = Ast::add(tokens)?;
+                            // l_ast = Ast::node(NodeKind::Large, l_ast, r_ast);
+                            l_ast = Ast::node(NodeKind::Small, r_ast, l_ast);
+                        },
+                        match_token!(TokenKind::EqualSmall, pos) => {
+                            let r_ast = Ast::add(tokens)?;
+                            l_ast = Ast::node(NodeKind::EqualSmall, l_ast, r_ast);
+                        },
+                        match_token!(TokenKind::EqualLarge, pos) => {
+                            let r_ast = Ast::add(tokens)?;
+                            // l_ast = Ast::node(NodeKind::EqualLarge, l_ast, r_ast);
+                            l_ast = Ast::node(NodeKind::EqualSmall, r_ast, l_ast);
+                        },
+                        _ => unreachable!(),
+                    }
+                },
+                match_token_nothing!(pos) => return Ok(l_ast)
+            }
+        }
+    }
+
+    fn add<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Ast, AstError>
     where
         Tokens: Iterator<Item = Token>,
     {
@@ -263,6 +340,30 @@ impl Ast {
                         println!("  cqo");
                         println!("  idiv rdi");
                     }
+                    // 比較演算子では真なら1, 偽なら0が
+                    // 最終的にraxに格納される
+                    NodeKind::Large => unreachable!(),
+                    NodeKind::Small => {
+                        println!("  cmp rax, rdi");
+                        println!("  setl al");
+                        println!("  movzb rax, al");
+                    },
+                    NodeKind::EqualLarge => unreachable!(),
+                    NodeKind::EqualSmall => {
+                        println!("  cmp rax, rdi");
+                        println!("  setle al");
+                        println!("  movzb rax, al");
+                    },
+                    NodeKind::Equal => {
+                        println!("  cmp rax, rdi");
+                        println!("  sete al");
+                        println!("  movzb rax, al");
+                    },
+                    NodeKind::NotEqual => {
+                        println!("  cmp rax, rdi");
+                        println!("  setne al");
+                        println!("  movzb rax, al");
+                    },
                 }
                 println!("  push rax");
             }
