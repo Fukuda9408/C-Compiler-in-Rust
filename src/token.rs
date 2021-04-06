@@ -1,6 +1,8 @@
 use std::error;
 use std::fmt;
 
+const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
+
 #[derive(Debug, PartialEq)]
 pub enum TokenKind {
     Num(i32),
@@ -19,6 +21,7 @@ pub enum TokenKind {
     NotEqual,   // !=
     Substitution,   // =
     SemiColon,  // ;
+    Return,
     EOF,
 }
 #[derive(Debug, Clone, Copy)]
@@ -87,6 +90,15 @@ impl Token {
             };
         }
 
+        macro_rules! tokenize_variable {
+            () => {
+                let (ident, new_pos) = Token::tokenize_ident(str, pos);
+                let token = Token::new(TokenKind::Ident(ident), new_pos);
+                result.push(token);
+                pos = new_pos;
+            };
+        }
+
         while pos < str.len() {
             match str[pos] {
                 b' ' | b'\t' | b'\n' => pos += 1,
@@ -131,11 +143,17 @@ impl Token {
                     result.push(token);
                     pos = new_pos;
                 },
+                b'r' => {
+                    let (is_contains, new_pos) = Token::tokenize_str(str, pos, "return".as_bytes());
+                    if is_contains {
+                        result.push(Token::new(TokenKind::Return, new_pos));
+                        pos = new_pos;
+                    } else {
+                        tokenize_variable!();
+                    }
+                },
                 _ => {
-                    let (ident, new_pos) = Token::tokenize_ident(str, pos);
-                    let token = Token::new(TokenKind::Ident(ident), new_pos);
-                    result.push(token);
-                    pos = new_pos;
+                    tokenize_variable!();
                 }
             }
         }
@@ -168,5 +186,23 @@ impl Token {
                     .parse()
                     .unwrap();
         (ident, pos)
+    }
+
+    fn tokenize_str(input: &[u8], mut pos: usize, search_str: &[u8]) -> (bool, usize) {
+        let mut start = 0;
+        let len = search_str.len();
+        while pos < input.len() && start < len {
+            if input[pos] != search_str[start] {
+                return (false, pos)
+            }
+            pos += 1;
+            start += 1;
+        }
+        if pos != input.len() {
+            if CHARSET.contains(&input[pos]) {
+                return (false, pos)
+            }
+        }
+        (true, pos)
     }
 }

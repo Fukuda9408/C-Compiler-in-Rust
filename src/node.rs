@@ -71,10 +71,19 @@ pub enum NodeKind {
     Substitution,   // =
 }
 
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum OneNodeKind {
+    Return,
+}
+
 #[derive(Debug)]
 pub enum Ast {
     Num(i32),
     Ident(String, usize),
+    OneNode {
+        node_kind: OneNodeKind,
+        hs: Box<Ast>,
+    },
     Node {
         node_kind: NodeKind,
         lhs: Box<Ast>,
@@ -130,8 +139,15 @@ impl Ast {
             rhs: Box::new(rhs),
         }
     }
+
+    fn one_node(node_kind: OneNodeKind, hs: Ast) -> Self {
+        Ast::OneNode {
+            node_kind,
+            hs: Box::new(hs),
+        }
+    }
     // program      = stmt*
-    // stmt         = expr ";"
+    // stmt         = expr ";" | "return" expr ";"
     // expr         = assign
     // assign       = equality ("=" assign)?
     // equality     = relational ("==" relational | "!=" relational)*
@@ -157,12 +173,27 @@ impl Ast {
     where
         Tokens: Iterator<Item = Token>,
     {
-        let expr = Ast::expr(tokens, variable_list);
-        match tokens.next().unwrap() {
-            match_token!(TokenKind::SemiColon, pos) => expr,
-            match_token_nothing!(pos) => Err(AstError::require_semicolon(pos)),
+        match tokens.peek().unwrap() {
+            match_token!(TokenKind::Return, pos) => {
+                match tokens.next().unwrap() {
+                    match_token!(TokenKind::Return, pos) => {
+                        let expr = Ast::expr(tokens, variable_list)?;
+                        match tokens.next().unwrap() {
+                            match_token!(TokenKind::SemiColon, pos) => Ok(Ast::one_node(OneNodeKind::Return, expr)),
+                            match_token_nothing!(pos) => Err(AstError::require_semicolon(pos)),
+                        }
+                    },
+                    _ => unreachable!(),
+                }
+            },
+            _ => {
+                let expr = Ast::expr(tokens, variable_list);
+                match tokens.next().unwrap() {
+                    match_token!(TokenKind::SemiColon, pos) => expr,
+                    match_token_nothing!(pos) => Err(AstError::require_semicolon(pos)),
+                }
+            }
         }
-
     }
 
     fn expr<Tokens>(tokens: &mut Peekable<Tokens>, variable_list: &mut HashMap<String, usize>) -> Result<Ast, AstError>

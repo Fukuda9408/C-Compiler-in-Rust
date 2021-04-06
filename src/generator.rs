@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt;
 
-use crate::node::{Ast, NodeKind};
+use crate::node::{Ast, NodeKind, OneNodeKind};
 
 #[derive(Debug, Clone, Copy)]
 enum GeneratorErrorKind {
@@ -63,6 +63,22 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             // 変数の値がstackに積まれる
             Ok(())
         }
+        Ast::OneNode {
+            node_kind,
+            hs,
+        } => {
+            match node_kind {
+                OneNodeKind::Return => {
+                    gen(*hs)?;
+                    // stackにexprの値が積まれている
+                    println!("  pop rax");
+                    println!("  mov rsp, rbp");
+                    println!("  pop rbp");
+                    println!("  ret");
+                },
+            }
+            Ok(())
+        },
         Ast::Node {
             node_kind,
             lhs,
