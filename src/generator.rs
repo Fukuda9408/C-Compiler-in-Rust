@@ -70,11 +70,11 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
         } => {
             match node_kind {
                 NodeKind::Substitution => {
-                    gen(*lhs)?;
+                    gen_left_value(*lhs)?;
                     gen(*rhs)?;
                 },
                 _ => {
-                    gen_left_value(*lhs)?;
+                    gen(*lhs)?;
                     gen(*rhs)?;
                 }
             }

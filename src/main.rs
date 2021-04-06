@@ -43,9 +43,15 @@ fn main() {
     println!("  push rbp");
     println!("  mov rbp, rsp");
     println!("  sub rsp, {}", variable_num * 8);
-
+    // println!("{:?}", asts.0);
     for ast in asts.0.into_iter() {
-        generator::gen(ast);
+        match generator::gen(ast) {
+            Ok(_) => (),
+            Err(e) => {
+                eprintln!("{}", e);
+                process::exit(1);
+            }
+        }
         // 最終的な値がstackに残っているため
         println!("  push rax");
     }
