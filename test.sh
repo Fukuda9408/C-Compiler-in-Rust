@@ -40,4 +40,7 @@ assert "5 > 6 == 5 < 6" 0
 assert "5 > 6 != 5 > 6" 0
 assert "5 > 6 != 5 < 6" 1
 
+assert "a =1;b =1; a = a+b;" 2
+assert " a =3; b = a; c = b + a;" 6
+
 echo OK

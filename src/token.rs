@@ -1,9 +1,10 @@
 use std::error;
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum TokenKind {
     Num(i32),
+    Ident(String),
     Plus,
     Minus,
     LParen,
@@ -16,6 +17,8 @@ pub enum TokenKind {
     EqualLarge, // >=
     Equal,      // ==
     NotEqual,   // !=
+    Substitution,   // =
+    SemiColon,  // ;
     EOF,
 }
 #[derive(Debug, Clone, Copy)]
@@ -62,7 +65,7 @@ impl fmt::Display for TokenizeError {
 
 impl error::Error for TokenizeError {}
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 pub struct Token {
     pub val: TokenKind,
     pub pos: usize,
@@ -117,7 +120,7 @@ impl Token {
                     pos += 1;
                     match str[pos] {
                         b'=' => tokenize_except_num!(TokenKind::Equal),
-                        b => return Err(TokenizeError::invalid_char(b as char, pos, String::from_utf8(str.to_vec()).unwrap())),
+                        _ => result.push(Token::new(TokenKind::Substitution, pos)),
                     }
                 },
                 b'!' => {
@@ -127,13 +130,19 @@ impl Token {
                         b => return Err(TokenizeError::invalid_char(b as char, pos, String::from_utf8(str.to_vec()).unwrap())),
                     }
                 },
+                b';' => tokenize_except_num!(TokenKind::SemiColon),
                 b'0'..=b'9' => {
                     let (num, new_pos) = Token::tokenize_number(str, pos)?;
                     let token = Token::new(TokenKind::Num(num), new_pos);
                     result.push(token);
                     pos = new_pos;
                 },
-                b => return Err(TokenizeError::invalid_char(b as char, pos, String::from_utf8(str.to_vec()).unwrap())),
+                _ => {
+                    let (ident, new_pos) = Token::tokenize_ident(str, pos);
+                    let token = Token::new(TokenKind::Ident(ident), new_pos);
+                    result.push(token);
+                    pos = new_pos;
+                }
             }
         }
         result.push(Token::new(TokenKind::EOF, pos));
@@ -155,7 +164,15 @@ impl Token {
         Ok((num, pos))
     }
 
-    fn tokenize_symbol(input: &[u8], mut pos: usize, symbol: &str) {
-
+    fn tokenize_ident(input: &[u8], mut pos: usize) -> (String, usize) {
+        let start = pos;
+        while pos < input.len() && !b" \t\n><=!".contains(&input[pos]) {
+            pos += 1;
+        }
+        let ident = String::from_utf8(input[start..pos].to_vec())
+                    .unwrap()
+                    .parse()
+                    .unwrap();
+        (ident, pos)
     }
 }
