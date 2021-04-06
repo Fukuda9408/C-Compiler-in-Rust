@@ -53,7 +53,7 @@ fn main() {
             }
         }
         // 最終的な値がstackに残っているため
-        println!("  push rax");
+        println!("  pop rax");
     }
 
     // エピローグ
