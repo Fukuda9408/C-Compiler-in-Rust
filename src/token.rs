@@ -24,7 +24,6 @@ pub enum TokenKind {
 #[derive(Debug, Clone, Copy)]
 pub enum TokenizeErrorKind {
     InvalidChar(char),
-    Eof
 }
 
 #[derive(Debug)]
@@ -46,10 +45,6 @@ impl TokenizeError {
     pub fn invalid_char(c: char, pos: usize, str: String) -> Self {
         Self::new(TokenizeErrorKind::InvalidChar(c), pos, str)
     }
-
-    pub fn eof(pos: usize, str: String) -> Self {
-        Self::new(TokenizeErrorKind::Eof, pos, str)
-    }
 }
 
 impl fmt::Display for TokenizeError {
@@ -58,7 +53,6 @@ impl fmt::Display for TokenizeError {
         let space = " ".repeat(self.pos);
         match self.val {
             InvalidChar(c) => write!(f, "{}\n{}^ Invalid char '{}'", self.str, space, c),
-            Eof => write!(f, "{}\n{}^ End of File", self.str, space),
         }
     }
 }

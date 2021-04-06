@@ -38,10 +38,10 @@ impl error::Error for GeneratorError {}
 
 fn gen_left_value(ast: Ast) -> Result<(), GeneratorError>{
     match ast {
-        Ast::Ident(String, usize) => {
+        Ast::Ident(_, usize) => {
             // 変数のアドレスをraxに代入
             println!("  mov rax, rbp");
-            println!("  sub rax, {}", (usize + 1) * 8);
+            println!("  sub rax, {}", usize * 8);
             println!("  push rax");
             Ok(())
         },
