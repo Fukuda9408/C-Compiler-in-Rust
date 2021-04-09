@@ -44,7 +44,7 @@ fn main() {
     println!("  push rbp");
     println!("  mov rbp, rsp");
     println!("  sub rsp, {}", variable_num * 8);
-    // println!("{:?}", asts.0);
+    println!("{:?}", asts.0);
     for ast in asts.0.into_iter() {
         match generator::gen(ast) {
             Ok(_) => (),

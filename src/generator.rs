@@ -137,8 +137,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                         NodeKind::While(num) => {
                             println!("; While start");
                             println!(".Lbegin{}:", num);
-                            gen(*lhs)?;
-                            println!("  pop rax");      // 結果がstackに積まれている
+                            gen(*lhs)?;                 // 結果がraxに格納されている
                             println!("  cmp rax, 0");   // 偽: 0, 真: 1
                             println!("  je .Lend{}", num);
                             gen(*rhs)?;
@@ -217,8 +216,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                 node_kind: _,
                 hs,
             }) = *condition {
-                gen(*hs)?;
-                println!("  pop rax");
+                gen(*hs)?;                  // 結果はraxに格納されている
                 println!("  cmp rax, 0");
             }
             println!("  je .Lend{}", for_num);
