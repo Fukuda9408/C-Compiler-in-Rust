@@ -53,6 +53,10 @@ fn main() {
                 process::exit(1);
             }
         }
+        // if, while, などではstmatが一つのAstに複数含まれるため、
+        // それぞれのexprの計算結果が余分にstackに積まれていき
+        // 最終的な値がstackからpopされるようになっているが問題なし
+
         // 最終的な値がstackに残っているため
         println!("  pop rax");
     }

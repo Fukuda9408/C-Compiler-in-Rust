@@ -40,9 +40,11 @@ fn gen_left_value(ast: Ast) -> Result<(), GeneratorError>{
     match ast {
         Ast::Ident(_, usize) => {
             // 変数のアドレスをraxに代入
-            println!("  mov rax, rbp");
+            println!("; Adress Read start");
+            println!("  mov rax, rbp ");
             println!("  sub rax, {}", usize * 8);
             println!("  push rax");
+            println!("; Adress Read finish");
             Ok(())
         },
         _ => Err(GeneratorError::not_left_value()),
@@ -51,16 +53,19 @@ fn gen_left_value(ast: Ast) -> Result<(), GeneratorError>{
 pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
     match ast {
         Ast::Num(num) => {
+            println!("; Num Push");
             println!("  push {}", num);
             Ok(())
         },
         Ast::Ident(_, _) => {
+            println!("; Local Variable Read start");
             gen_left_value(ast)?;
             // raxには変数のアドレスが格納
             println!("  pop rax");
             println!("  mov rax, [rax]");
             println!("  push rax");
             // 変数の値がstackに積まれる
+            println!("; Local Variable Read finish");
             Ok(())
         }
         Ast::OneNode {
@@ -69,12 +74,14 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
         } => {
             match node_kind {
                 OneNodeKind::Return => {
+                    println!("; Return start");
                     gen(*hs)?;
                     // stackにexprの値が積まれている
                     println!("  pop rax");
                     println!("  mov rsp, rbp");
                     println!("  pop rbp");
                     println!("  ret");
+                    println!("; Return finish");
                 },
                 OneNodeKind::For(num) => todo!(),
             }
@@ -87,6 +94,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
         } => {
             match node_kind {
                 NodeKind::Substitution => {
+                    println!("; Substitution start");
                     gen_left_value(*lhs)?;
                     gen(*rhs)?;
                     println!("  pop rdi");
@@ -96,18 +104,22 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                     println!("  mov [rax], rdi");
                     // 右辺値がstackに積まれる
                     println!("  push rdi");
+                    println!("; Substitution finish");
                 },
                 NodeKind::If(_) | NodeKind::IfElse | NodeKind::Else(_) | NodeKind::While(_) => {
                     match node_kind {
                         NodeKind::If(num) => {
+                            println!("; If start");
                             gen(*lhs)?;
                             println!("  pop rax");      // 結果がstackに積まれている
                             println!("  cmp rax, 0");   // 偽: 0, 真: 1
                             println!("  je .Lend{}", num);
                             gen(*rhs)?;
                             println!(".Lend{}:", num);
+                            println!("; If finish");
                         },
                         NodeKind::IfElse => {
+                            println!("; If Else start");
                             gen(*lhs)?;
                             println!("  pop rax");      // 結果がstackに積まれている
                             println!("  cmp rax, 0");   // 偽: 0, 真: 1
@@ -120,8 +132,10 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                             println!(".Lelse{}:", num);
                             gen(*rhs)?;
                             println!(".Lend{}:", num);
+                            println!("; If Else finish");
                         },
                         NodeKind::While(num) => {
+                            println!("; While start");
                             println!(".Lbegin{}:", num);
                             gen(*lhs)?;
                             println!("  pop rax");      // 結果がstackに積まれている
@@ -130,11 +144,13 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                             gen(*rhs)?;
                             println!("  jmp .Lbegin{}", num);
                             println!(".Lend{}:", num);
+                            println!("; While finish");
                         }
                         _ => unreachable!(),
                     }
                 },
                 _ => {
+                    println!("; Arithmetic start");
                     gen(*lhs)?;
                     gen(*rhs)?;
                     println!("  pop rdi");
@@ -177,6 +193,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                     }
                     // 計算結果がstackに積まれる
                     println!("  push rax");
+                    println!("; Arithmetic finish");
                 }
             }
             Ok(())
@@ -188,6 +205,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             change,
             stmt,
         }=> {
+            println!("; For start");
             if let Some(Ast::OneNode {
                 node_kind: _,
                 hs,
@@ -218,6 +236,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             }
             println!("  jmp .Lbegin{}", for_num);
             println!(".Lend{}:", for_num);
+            println!("; For finish");
             Ok(())
         }
     }

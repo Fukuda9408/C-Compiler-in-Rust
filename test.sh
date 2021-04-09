@@ -48,5 +48,10 @@ assert "a=1; if(a==1) b = 0;" 0
 assert "a = 1; if(a == 0) b = 0; else b = 1;" 1
 assert "a = 1; while(a < 4) a = a + 1; " 4
 assert "b = 0; for(a = 0; a < 4; a = a + 1) b = b + a;" 6
+assert "a=0;b=0;c=0;for(;a<4;a = a+1) for(;b<4;b = b+1) c = a+b;return c;" 3
+# 二個目のforループでは初期化処理が働かないため、b=3に一個目のループで変化した後は、aの値を変えようと二個目のループの中身は処理されないため図ずっとc=3
+assert "c=0;for(a=0;a<4;a = a+1) for(b=0;b<4;b = b+1) c = a+b;return c;" 6
+assert "c=0;for(a=0;a<4;a = a+1) for(b=0;b<4;b = b+1) c = c+a+b;return c;" 12
+
 
 echo OK
