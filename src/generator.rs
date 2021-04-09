@@ -76,6 +76,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                     println!("  pop rbp");
                     println!("  ret");
                 },
+                OneNodeKind::For(num) => todo!(),
             }
             Ok(())
         },
@@ -88,56 +89,135 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                 NodeKind::Substitution => {
                     gen_left_value(*lhs)?;
                     gen(*rhs)?;
+                    println!("  pop rdi");
+                    println!("  pop rax");
+                    // raxに変数のアドレス
+                    // rdiに値
+                    println!("  mov [rax], rdi");
+                    // 右辺値がstackに積まれる
+                    println!("  push rdi");
+                },
+                NodeKind::If(_) | NodeKind::IfElse | NodeKind::Else(_) | NodeKind::While(_) => {
+                    match node_kind {
+                        NodeKind::If(num) => {
+                            gen(*lhs)?;
+                            println!("  pop rax");      // 結果がstackに積まれている
+                            println!("  cmp rax, 0");   // 偽: 0, 真: 1
+                            println!("  je .Lend{}", num);
+                            gen(*rhs)?;
+                            println!(".Lend{}", num);
+                        },
+                        NodeKind::IfElse => {
+                            gen(*lhs)?;
+                            println!("  pop rax");      // 結果がstackに積まれている
+                            println!("  cmp rax, 0");   // 偽: 0, 真: 1
+                            gen(*rhs)?;         // Else Nodeを呼び出す
+                        },
+                        NodeKind::Else(num) => {
+                            println!("  je .Lelse{}", num);
+                            gen(*lhs)?;
+                            println!("  jmp .Lend{}", num);
+                            println!(".Lelse{}", num);
+                            gen(*rhs)?;
+                            println!(".Lend{}", num);
+                        },
+                        NodeKind::While(num) => {
+                            println!(".Lbegin{}", num);
+                            gen(*lhs)?;
+                            println!("  pop rax");      // 結果がstackに積まれている
+                            println!("  cmp rax, 0");   // 偽: 0, 真: 1
+                            println!("  je .Lend{}", num);
+                            gen(*rhs)?;
+                            println!("  jmp .Lbegin{}", num);
+                            println!(".Lend{}", num);
+                        }
+                        _ => unreachable!(),
+                    }
                 },
                 _ => {
                     gen(*lhs)?;
                     gen(*rhs)?;
+                    println!("  pop rdi");
+                    println!("  pop rax");
+                    match node_kind {
+                        NodeKind::Add => println!("  add rax, rdi"),
+                        NodeKind::Sub => println!("  sub rax, rdi"),
+                        NodeKind::Mul => println!("  imul rax, rdi"),
+                        NodeKind::Div => {
+                            println!("  cqo");
+                            println!("  idiv rdi");
+                        },
+                        NodeKind::Substitution => unreachable!(),
+                        // 比較演算子では真なら1, 偽なら0が
+                        // raxに格納されstackに積まれる
+                        NodeKind::Small => {
+                            println!("  cmp rax, rdi");
+                            println!("  setl al");
+                            println!("  movzb rax, al");
+                        },
+                        NodeKind::EqualSmall => {
+                            println!("  cmp rax, rdi");
+                            println!("  setle al");
+                            println!("  movzb rax, al");
+                        },
+                        NodeKind::Equal => {
+                            println!("  cmp rax, rdi");
+                            println!("  sete al");
+                            println!("  movzb rax, al");
+                        },
+                        NodeKind::NotEqual => {
+                            println!("  cmp rax, rdi");
+                            println!("  setne al");
+                            println!("  movzb rax, al");
+                        },
+                        NodeKind::If(_) => {},
+                        NodeKind::IfElse => unreachable!(),
+                        NodeKind::Else(_) => unreachable!(),
+                        NodeKind::While(_) => unreachable!(),
+                    }
+                    // 計算結果がstackに積まれる
+                    println!("  push rax");
                 }
             }
-            println!("  pop rdi");
-            println!("  pop rax");
-            match node_kind {
-                NodeKind::Add => println!("  add rax, rdi"),
-                NodeKind::Sub => println!("  sub rax, rdi"),
-                NodeKind::Mul => println!("  imul rax, rdi"),
-                NodeKind::Div => {
-                    println!("  cqo");
-                    println!("  idiv rdi");
-                },
-                NodeKind::Substitution => {
-                    // raxに変数のアドレス
-                    // rdiに値
-                    println!("  mov [rax], rdi");
-                },
-                // 比較演算子では真なら1, 偽なら0が
-                // raxに格納されstackに積まれる
-                NodeKind::Small => {
-                    println!("  cmp rax, rdi");
-                    println!("  setl al");
-                    println!("  movzb rax, al");
-                },
-                NodeKind::EqualSmall => {
-                    println!("  cmp rax, rdi");
-                    println!("  setle al");
-                    println!("  movzb rax, al");
-                },
-                NodeKind::Equal => {
-                    println!("  cmp rax, rdi");
-                    println!("  sete al");
-                    println!("  movzb rax, al");
-                },
-                NodeKind::NotEqual => {
-                    println!("  cmp rax, rdi");
-                    println!("  setne al");
-                    println!("  movzb rax, al");
-                },
+            Ok(())
+        },
+        Ast::ForNode {
+            for_num,
+            initial,
+            condition,
+            change,
+            stmt,
+        }=> {
+            if let Some(Ast::OneNode {
+                node_kind: _,
+                hs,
+            }) = *initial{
+                gen(*hs)?;
             }
-            match node_kind {
-                // 代入の時は右辺値がstackに積まれる
-                NodeKind::Substitution => println!("  push rdi"),
-                // それ以外は計算結果がstackに積まれる
-                _ =>  println!("  push rax"),
+            println!(".Lbegin{}", for_num);
+            if let Some(Ast::OneNode {
+                node_kind: _,
+                hs,
+            }) = *condition {
+                gen(*hs)?;
+                println!("  pop rax");
+                println!("  cmp rax, 0");
             }
+            println!("  je .Lend{}", for_num);
+            if let Ast::OneNode {
+                node_kind: _,
+                hs,
+            } = *stmt {
+                gen(*hs)?;
+            }
+            if let Some(Ast::OneNode {
+                node_kind: _,
+                hs,
+            }) = *change{
+                gen(*hs)?;
+            }
+            println!("  jmp .Lbegin{}", for_num);
+            println!(".Lend{}", for_num);
             Ok(())
         }
     }

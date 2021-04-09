@@ -22,6 +22,10 @@ pub enum TokenKind {
     Substitution,   // =
     SemiColon,  // ;
     Return,
+    If,
+    Else,
+    While,
+    For,
     EOF,
 }
 #[derive(Debug, Clone, Copy)]
@@ -143,10 +147,46 @@ impl Token {
                     result.push(token);
                     pos = new_pos;
                 },
+                b'i' => {
+                    let (is_contains, new_pos) = Token::tokenize_str(str, pos, "if".as_bytes());
+                    if is_contains {
+                        result.push(Token::new(TokenKind::If, new_pos));
+                        pos = new_pos;
+                    } else {
+                        tokenize_variable!();
+                    }
+                },
+                b'f' => {
+                    let (is_contains, new_pos) = Token::tokenize_str(str, pos, "for".as_bytes());
+                    if is_contains {
+                        result.push(Token::new(TokenKind::For, new_pos));
+                        pos = new_pos;
+                    } else {
+                        tokenize_variable!();
+                    }
+                },
+                b'e' => {
+                    let (is_contains, new_pos) = Token::tokenize_str(str, pos, "else".as_bytes());
+                    if is_contains {
+                        result.push(Token::new(TokenKind::Else, new_pos));
+                        pos = new_pos;
+                    } else {
+                        tokenize_variable!();
+                    }
+                },
                 b'r' => {
                     let (is_contains, new_pos) = Token::tokenize_str(str, pos, "return".as_bytes());
                     if is_contains {
                         result.push(Token::new(TokenKind::Return, new_pos));
+                        pos = new_pos;
+                    } else {
+                        tokenize_variable!();
+                    }
+                },
+                b'w' => {
+                    let (is_contains, new_pos) = Token::tokenize_str(str, pos, "while".as_bytes());
+                    if is_contains {
+                        result.push(Token::new(TokenKind::While, new_pos));
                         pos = new_pos;
                     } else {
                         tokenize_variable!();

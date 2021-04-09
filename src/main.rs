@@ -24,7 +24,7 @@ fn main() {
             process::exit(1);
         }
     };
-    println!("{:?}", tokens);
+    // println!("{:?}", tokens);
     let mut token = tokens.into_iter().peekable();
     let asts = match Ast::program(&mut token) {
         Ok(ast) => ast,
@@ -33,6 +33,7 @@ fn main() {
             process::exit(1);
         }
     };
+    // println!("{:?}", asts);
     let variable_num = asts.1;
     println!(".intel_syntax noprefix");
     println!(".global main");
@@ -43,7 +44,7 @@ fn main() {
     println!("  push rbp");
     println!("  mov rbp, rsp");
     println!("  sub rsp, {}", variable_num * 8);
-    println!("{:?}", asts.0);
+    // println!("{:?}", asts.0);
     for ast in asts.0.into_iter() {
         match generator::gen(ast) {
             Ok(_) => (),
