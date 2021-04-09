@@ -96,20 +96,20 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                     println!("  mov [rax], rdi");
                     // 右辺値がstackに積まれる
                     println!("  push rdi");
+                    // raxに格納
+                    println!("  pop rax");
                 },
                 NodeKind::If(_) | NodeKind::IfElse | NodeKind::Else(_) | NodeKind::While(_) => {
                     match node_kind {
                         NodeKind::If(num) => {
-                            gen(*lhs)?;
-                            println!("  pop rax");      // 結果がstackに積まれている
+                            gen(*lhs)?;                 // 結果がraxに格納されている
                             println!("  cmp rax, 0");   // 偽: 0, 真: 1
                             println!("  je .Lend{}", num);
                             gen(*rhs)?;
                             println!(".Lend{}:", num);
                         },
                         NodeKind::IfElse => {
-                            gen(*lhs)?;
-                            println!("  pop rax");      // 結果がstackに積まれている
+                            gen(*lhs)?;                 // 結果がraxに格納されている
                             println!("  cmp rax, 0");   // 偽: 0, 真: 1
                             gen(*rhs)?;         // Else Nodeを呼び出す
                         },
@@ -123,8 +123,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                         },
                         NodeKind::While(num) => {
                             println!(".Lbegin{}:", num);
-                            gen(*lhs)?;
-                            println!("  pop rax");      // 結果がstackに積まれている
+                            gen(*lhs)?;                 // 結果がraxに格納されている
                             println!("  cmp rax, 0");   // 偽: 0, 真: 1
                             println!("  je .Lend{}", num);
                             gen(*rhs)?;
@@ -175,8 +174,6 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                         NodeKind::Else(_) => unreachable!(),
                         NodeKind::While(_) => unreachable!(),
                     }
-                    // 計算結果がstackに積まれる
-                    println!("  push rax");
                 }
             }
             Ok(())
@@ -199,8 +196,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                 node_kind: _,
                 hs,
             }) = *condition {
-                gen(*hs)?;
-                println!("  pop rax");
+                gen(*hs)?;                  // 結果はraxに格納されている
                 println!("  cmp rax, 0");
             }
             println!("  je .Lend{}", for_num);
