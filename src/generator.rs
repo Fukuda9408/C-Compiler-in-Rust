@@ -105,7 +105,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                             println!("  cmp rax, 0");   // 偽: 0, 真: 1
                             println!("  je .Lend{}", num);
                             gen(*rhs)?;
-                            println!(".Lend{}", num);
+                            println!(".Lend{}:", num);
                         },
                         NodeKind::IfElse => {
                             gen(*lhs)?;
@@ -117,19 +117,19 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                             println!("  je .Lelse{}", num);
                             gen(*lhs)?;
                             println!("  jmp .Lend{}", num);
-                            println!(".Lelse{}", num);
+                            println!(".Lelse{}:", num);
                             gen(*rhs)?;
-                            println!(".Lend{}", num);
+                            println!(".Lend{}:", num);
                         },
                         NodeKind::While(num) => {
-                            println!(".Lbegin{}", num);
+                            println!(".Lbegin{}:", num);
                             gen(*lhs)?;
                             println!("  pop rax");      // 結果がstackに積まれている
                             println!("  cmp rax, 0");   // 偽: 0, 真: 1
                             println!("  je .Lend{}", num);
                             gen(*rhs)?;
                             println!("  jmp .Lbegin{}", num);
-                            println!(".Lend{}", num);
+                            println!(".Lend{}:", num);
                         }
                         _ => unreachable!(),
                     }
@@ -194,7 +194,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             }) = *initial{
                 gen(*hs)?;
             }
-            println!(".Lbegin{}", for_num);
+            println!(".Lbegin{}:", for_num);
             if let Some(Ast::OneNode {
                 node_kind: _,
                 hs,
@@ -217,7 +217,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                 gen(*hs)?;
             }
             println!("  jmp .Lbegin{}", for_num);
-            println!(".Lend{}", for_num);
+            println!(".Lend{}:", for_num);
             Ok(())
         }
     }
