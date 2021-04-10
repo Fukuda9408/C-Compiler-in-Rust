@@ -116,7 +116,7 @@ macro_rules! match_token_num {
     ($num:ident) => {
         Token {
             val: TokenKind::Num($num),
-            pos: pos
+            pos: _pos
         }
     };
 }
@@ -125,7 +125,7 @@ macro_rules! match_token_ident {
     ($str:ident) => {
         Token {
             val: TokenKind::Ident($str),
-            pos: pos
+            pos: _pos
         }
     };
 }
@@ -204,6 +204,7 @@ impl Ast {
     }
     // program      = stmt*
     // stmt         = expr ";"
+    //              | "{" stmt* "}"
     //              | "if" "(" expr ")" stmt ("else" stmt)?
     //              | "while" "(" expr ")" stmt
     //              | "for" "(" expr? ";" expr? ";" expr? ")" stmt
@@ -235,9 +236,9 @@ impl Ast {
         Tokens: Iterator<Item = Token>,
     {
         match tokens.peek().unwrap() {
-            match_token!(TokenKind::Return, pos) => {
+            match_token!(TokenKind::Return,_pos) => {
                 match tokens.next().unwrap() {
-                    match_token!(TokenKind::Return, pos) => {
+                    match_token!(TokenKind::Return,_pos) => {
                         let expr = Ast::expr(tokens, variable_list)?;
                         match tokens.next().unwrap() {
                             match_token!(TokenKind::SemiColon, pos) => Ok(Ast::one_node(OneNodeKind::Return, expr)),
@@ -247,19 +248,19 @@ impl Ast {
                     _ => unreachable!(),
                 }
             },
-            match_token!(TokenKind::If, pos) => {
+            match_token!(TokenKind::If,_pos) => {
                 match tokens.next().unwrap() {
-                    match_token!(TokenKind::If, pos) => {
+                    match_token!(TokenKind::If,pos) => {
                         match tokens.next().unwrap() {
-                            match_token!(TokenKind::LParen, pos) => {
+                            match_token!(TokenKind::LParen,_pos) => {
                                 let expr = Ast::expr(tokens, variable_list)?;
                                 match tokens.next().unwrap() {
-                                    match_token!(TokenKind::RParen, pos) => {
+                                    match_token!(TokenKind::RParen,_pos) => {
                                         let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                         match tokens.peek().unwrap() {
-                                            match_token!(TokenKind::Else, pos) => {
+                                            match_token!(TokenKind::Else,_pos) => {
                                                 match tokens.next().unwrap() {
-                                                    match_token!(TokenKind::Else, pos) => {
+                                                    match_token!(TokenKind::Else,_pos) => {
                                                         let stmt_second = Ast::stmt(tokens, variable_list, control_val)?;
                                                         return Ok(Ast::node(NodeKind::IfElse, expr, Ast::node(NodeKind::Else(control_val.val_if_else()), stmt, stmt_second)))
                                                     },
@@ -278,14 +279,14 @@ impl Ast {
                     _ => unreachable!(),
                 }
             },
-            match_token!(TokenKind::While, pos) => {
+            match_token!(TokenKind::While,_pos) => {
                 match tokens.next().unwrap() {
-                    match_token!(TokenKind::While, pos) => {
+                    match_token!(TokenKind::While,pos) => {
                         match tokens.next().unwrap() {
-                            match_token!(TokenKind::LParen, pos) => {
+                            match_token!(TokenKind::LParen,_pos) => {
                                 let expr = Ast::expr(tokens, variable_list)?;
                                 match tokens.next().unwrap() {
-                                    match_token!(TokenKind::RParen, pos) => {
+                                    match_token!(TokenKind::RParen,_pos) => {
                                         let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                         Ok(Ast::node(NodeKind::While(control_val.val_while()), expr, stmt))
                                     },
@@ -298,30 +299,30 @@ impl Ast {
                     _ => unreachable!(),
                 }
             },
-            match_token!(TokenKind::For, pos) => {
+            match_token!(TokenKind::For,_pos) => {
                 let for_num = control_val.val_for();
                 match tokens.next().unwrap() {
-                    match_token!(TokenKind::For, pos) => {
+                    match_token!(TokenKind::For,pos) => {
                         match tokens.next().unwrap() {
-                            match_token!(TokenKind::LParen, pos) => {
+                            match_token!(TokenKind::LParen,_pos) => {
                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                 //        ^
                                 match tokens.peek().unwrap() {
-                                    match_token!(TokenKind::SemiColon, pos) => {
+                                    match_token!(TokenKind::SemiColon,_pos) => {
                                         match tokens.next().unwrap() {
-                                            match_token!(TokenKind::SemiColon, pos) => {
+                                            match_token!(TokenKind::SemiColon,_pos) => {
                                             // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                             //                  ^
                                                 match tokens.peek().unwrap() {
-                                                    match_token!(TokenKind::SemiColon, pos) => {
+                                                    match_token!(TokenKind::SemiColon,_pos) => {
                                                         match tokens.next().unwrap() {
-                                                            match_token!(TokenKind::SemiColon, pos) => {
+                                                            match_token!(TokenKind::SemiColon,_pos) => {
                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                 //                            ^
                                                                 match tokens.peek().unwrap() {
-                                                                    match_token!(TokenKind::RParen, pos) => {
+                                                                    match_token!(TokenKind::RParen,_pos) => {
                                                                         match tokens.next().unwrap() {
-                                                                            match_token!(TokenKind::RParen, pos) => {
+                                                                            match_token!(TokenKind::RParen,_pos) => {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
@@ -337,7 +338,7 @@ impl Ast {
                                                                         // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                         //                                   ^
                                                                         match tokens.next().unwrap() {
-                                                                            match_token!(TokenKind::RParen, pos) => {
+                                                                            match_token!(TokenKind::RParen,_pos) => {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
@@ -359,13 +360,13 @@ impl Ast {
                                                         // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                         //                         ^
                                                         match tokens.next().unwrap() {
-                                                            match_token!(TokenKind::SemiColon, pos) => {
+                                                            match_token!(TokenKind::SemiColon,_pos) => {
                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                 //                            ^
                                                                 match tokens.peek().unwrap() {
-                                                                    match_token!(TokenKind::RParen, pos) => {
+                                                                    match_token!(TokenKind::RParen,_pos) => {
                                                                         match tokens.next().unwrap() {
-                                                                            match_token!(TokenKind::RParen, pos) => {
+                                                                            match_token!(TokenKind::RParen,_pos) => {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
@@ -383,7 +384,7 @@ impl Ast {
                                                                         // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                         //                                   ^
                                                                         match tokens.next().unwrap() {
-                                                                            match_token!(TokenKind::RParen, pos) => {
+                                                                            match_token!(TokenKind::RParen,_pos) => {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
@@ -411,19 +412,19 @@ impl Ast {
                                         // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                         //               ^
                                         match tokens.next().unwrap() {
-                                            match_token!(TokenKind::SemiColon, pos) => {
+                                            match_token!(TokenKind::SemiColon,_pos) => {
                                             // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                             //                  ^
                                                 match tokens.peek().unwrap() {
-                                                    match_token!(TokenKind::SemiColon, pos) => {
+                                                    match_token!(TokenKind::SemiColon,_pos) => {
                                                         match tokens.next().unwrap() {
-                                                            match_token!(TokenKind::SemiColon, pos) => {
+                                                            match_token!(TokenKind::SemiColon,_pos) => {
                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                 //                            ^
                                                                 match tokens.peek().unwrap() {
-                                                                    match_token!(TokenKind::RParen, pos) => {
+                                                                    match_token!(TokenKind::RParen,_pos) => {
                                                                         match tokens.next().unwrap() {
-                                                                            match_token!(TokenKind::RParen, pos) => {
+                                                                            match_token!(TokenKind::RParen,_pos) => {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
@@ -442,7 +443,7 @@ impl Ast {
                                                                         // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                         //                                   ^
                                                                         match tokens.next().unwrap() {
-                                                                            match_token!(TokenKind::RParen, pos) => {
+                                                                            match_token!(TokenKind::RParen,_pos) => {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
@@ -466,13 +467,13 @@ impl Ast {
                                                         // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                         //                         ^
                                                         match tokens.next().unwrap() {
-                                                            match_token!(TokenKind::SemiColon, pos) => {
+                                                            match_token!(TokenKind::SemiColon,_pos) => {
                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                 //                            ^
                                                                 match tokens.peek().unwrap() {
-                                                                    match_token!(TokenKind::RParen, pos) => {
+                                                                    match_token!(TokenKind::RParen,_pos) => {
                                                                         match tokens.next().unwrap() {
-                                                                            match_token!(TokenKind::RParen, pos) => {
+                                                                            match_token!(TokenKind::RParen,_pos) => {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
@@ -491,7 +492,7 @@ impl Ast {
                                                                         // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                         //                                   ^
                                                                         match tokens.next().unwrap() {
-                                                                            match_token!(TokenKind::RParen, pos) => {
+                                                                            match_token!(TokenKind::RParen,_pos) => {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
@@ -526,7 +527,7 @@ impl Ast {
             _ => {
                 let expr = Ast::expr(tokens, variable_list);
                 match tokens.next().unwrap() {
-                    match_token!(TokenKind::SemiColon, pos) => expr,
+                    match_token!(TokenKind::SemiColon,_pos) => expr,
                     match_token_nothing!(pos) => Err(AstError::require_semicolon(pos)),
                 }
             }
@@ -548,7 +549,7 @@ impl Ast {
         match tokens.peek().unwrap().val {
             TokenKind::Substitution => {
                 match tokens.next().unwrap() {
-                    match_token!(TokenKind::Substitution, pos) => {
+                    match_token!(TokenKind::Substitution,_pos) => {
                         let r_ast = Ast::assign(tokens, variable_list)?;
                         Ok(Ast::node(NodeKind::Substitution, l_ast, r_ast))
                     },
@@ -566,20 +567,20 @@ impl Ast {
         let mut l_ast = Ast::relational(tokens, variable_list)?;
         loop {
             match tokens.peek().unwrap() {
-                match_token!(TokenKind::Equal, pos) | match_token!(TokenKind::NotEqual, pos) => {
+                match_token!(TokenKind::Equal, _pos) | match_token!(TokenKind::NotEqual, _pos) => {
                     match tokens.next().unwrap() {
-                        match_token!(TokenKind::Equal, pos) => {
+                        match_token!(TokenKind::Equal,_pos) => {
                             let r_ast = Ast::relational(tokens, variable_list)?;
                             l_ast = Ast::node(NodeKind::Equal, l_ast, r_ast);
                         },
-                        match_token!(TokenKind::NotEqual, pos) => {
+                        match_token!(TokenKind::NotEqual,_pos) => {
                             let r_ast = Ast::relational(tokens, variable_list)?;
                             l_ast = Ast::node(NodeKind::NotEqual, l_ast, r_ast);
                         },
                         _ => unreachable!(),
                     }
                 },
-                match_token_nothing!(pos) => return Ok(l_ast)
+                match_token_nothing!(_pos) => return Ok(l_ast)
             }
         }
     }
@@ -591,23 +592,23 @@ impl Ast {
         let mut l_ast = Ast::add(tokens, variable_list)?;
         loop {
             match tokens.peek().unwrap() {
-                match_token!(TokenKind::Small, pos) | match_token!(TokenKind::Large, pos)
-                | match_token!(TokenKind::EqualSmall, pos) | match_token!(TokenKind::EqualLarge, pos) => {
+                match_token!(TokenKind::Small, _pos) | match_token!(TokenKind::Large,_pos)
+                | match_token!(TokenKind::EqualSmall, _pos) | match_token!(TokenKind::EqualLarge,_pos) => {
                     match tokens.next().unwrap() {
-                        match_token!(TokenKind::Small, pos) => {
+                        match_token!(TokenKind::Small,_pos) => {
                             let r_ast = Ast::add(tokens, variable_list)?;
                             l_ast = Ast::node(NodeKind::Small, l_ast, r_ast);
                         },
-                        match_token!(TokenKind::Large, pos) => {
+                        match_token!(TokenKind::Large,_pos) => {
                             let r_ast = Ast::add(tokens, variable_list)?;
                             // l_ast = Ast::node(NodeKind::Large, l_ast, r_ast);
                             l_ast = Ast::node(NodeKind::Small, r_ast, l_ast);
                         },
-                        match_token!(TokenKind::EqualSmall, pos) => {
+                        match_token!(TokenKind::EqualSmall,_pos) => {
                             let r_ast = Ast::add(tokens, variable_list)?;
                             l_ast = Ast::node(NodeKind::EqualSmall, l_ast, r_ast);
                         },
-                        match_token!(TokenKind::EqualLarge, pos) => {
+                        match_token!(TokenKind::EqualLarge,_pos) => {
                             let r_ast = Ast::add(tokens, variable_list)?;
                             // l_ast = Ast::node(NodeKind::EqualLarge, l_ast, r_ast);
                             l_ast = Ast::node(NodeKind::EqualSmall, r_ast, l_ast);
@@ -615,7 +616,7 @@ impl Ast {
                         _ => unreachable!(),
                     }
                 },
-                match_token_nothing!(pos) => return Ok(l_ast)
+                match_token_nothing!(_pos) => return Ok(l_ast)
             }
         }
     }
@@ -631,11 +632,11 @@ impl Ast {
             //   mul ("+" mul | "-" mul) *
             //     ^
             match tokens.peek().unwrap() {
-                match_token!(TokenKind::Plus, pos) | match_token!(TokenKind::Minus, pos) => {
+                match_token!(TokenKind::Plus, _pos) | match_token!(TokenKind::Minus,_pos) => {
                     //   mul ("+" mul | "-" mul) *
                     //         ^
                     match tokens.next().unwrap() {
-                        match_token!(TokenKind::Plus, pos) => {
+                        match_token!(TokenKind::Plus,_pos) => {
                             //   mul ("+" mul | "-" mul) *
                             //         ^
                             let r_ast = Ast::mul(tokens, variable_list)?;
@@ -643,7 +644,7 @@ impl Ast {
                             //              ^
                             l_ast = Ast::node(NodeKind::Add, l_ast, r_ast);
                         },
-                        match_token!(TokenKind::Minus, pos) => {
+                        match_token!(TokenKind::Minus,_pos) => {
                             //   mul ("+" mul | "-" mul) *
                             //                   ^
                             let r_ast = Ast::mul(tokens, variable_list)?;
@@ -654,7 +655,7 @@ impl Ast {
                         _ => unreachable!(),
                     }
                 },
-                match_token_nothing!(pos) => return Ok(l_ast)
+                match_token_nothing!(_pos) => return Ok(l_ast)
             }
         }
     }
@@ -670,9 +671,9 @@ impl Ast {
             // unary ("*" unary | "/" unary)*
             //     ^
             match tokens.peek().unwrap() {
-                match_token!(TokenKind::Asterisk, pos) | match_token!(TokenKind::Slash, pos) => {
+                match_token!(TokenKind::Asterisk, _pos) | match_token!(TokenKind::Slash,_pos) => {
                     match tokens.next().unwrap() {
-                        match_token!(TokenKind::Asterisk, pos) => {
+                        match_token!(TokenKind::Asterisk,_pos) => {
                             // unary ("*" unary | "/" unary)
                             //         ^
                             let r_ast = Ast::unary(tokens, variable_list)?;
@@ -680,7 +681,7 @@ impl Ast {
                             //                ^
                             l_ast = Ast::node(NodeKind::Mul, l_ast, r_ast);
                         },
-                        match_token!(TokenKind::Slash, pos) => {
+                        match_token!(TokenKind::Slash,_pos) => {
                             // unary ("*" unary | "/" unary)
                             //                     ^
                             let r_ast = Ast::unary(tokens, variable_list)?;
@@ -691,7 +692,7 @@ impl Ast {
                         _ => unreachable!(),
                     }
                 },
-                match_token_nothing!(pos) => return Ok(l_ast)
+                match_token_nothing!(_pos) => return Ok(l_ast)
             }
         }
     }
@@ -707,10 +708,10 @@ impl Ast {
                 match tokens.next().unwrap() {
                     //   ("+" | "-")? primary
                     //     ^
-                    match_token!(TokenKind::Plus, pos) => return Ast::primary(tokens, variable_list),
+                    match_token!(TokenKind::Plus,_pos) => return Ast::primary(tokens, variable_list),
                     //   ("+" | "-")? primary
                     //           ^
-                    match_token!(TokenKind::Minus, pos) => {
+                    match_token!(TokenKind::Minus,_pos) => {
                         let l_ast = Ast::num(0);
                         let r_ast = Ast::primary(tokens, variable_list)?;
                     //   ("+" | "-")? primary
@@ -744,19 +745,19 @@ impl Ast {
                 };
                 Ok(Ast::Ident(ident_str, pos))
             },
-            match_token!(TokenKind::LParen, pos) => {
+            match_token!(TokenKind::LParen,pos) => {
                 // "(" epxr ")"
                 //  ^
                 let ex = Ast::expr(tokens, variable_list)?;
                 // "(" epxr ")"
                 //        ^
                 match tokens.next().unwrap() {
-                    match_token!(TokenKind::RParen, pos) => Ok(ex),
-                    match_token!(TokenKind::EOF, pos) => Err(AstError::eof(pos)),
+                    match_token!(TokenKind::RParen,_pos) => Ok(ex),
+                    match_token!(TokenKind::EOF,_pos) => Err(AstError::eof(pos)),
                     match_token_nothing!(pos) => Err(AstError::unclosed_parenth(pos)),
                 }
             },
-            match_token!(TokenKind::EOF, pos) => Err(AstError::eof(pos)),
+            match_token!(TokenKind::EOF,pos) => Err(AstError::eof(pos)),
             match_token_nothing!(pos) => Err(AstError::not_pattern_matching(pos)),
         }
     }

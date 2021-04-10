@@ -137,7 +137,8 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                         NodeKind::While(num) => {
                             println!("# While start");
                             println!(".Lbegin{}:", num);
-                            gen(*lhs)?;                 // 結果がraxに格納されている
+                            gen(*lhs)?;
+                            println!("  pop rax");      // 結果がraxに格納されている
                             println!("  cmp rax, 0");   // 偽: 0, 真: 1
                             println!("  je .Lend{}", num);
                             gen(*rhs)?;
@@ -204,19 +205,22 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             change,
             stmt,
         }=> {
+            // exprの結果は使用しないためpopする
             println!("# For start");
             if let Some(Ast::OneNode {
                 node_kind: _,
                 hs,
             }) = *initial{
                 gen(*hs)?;
+                println!("  pop rax");      // 結果はraxに格納されている
             }
             println!(".Lbegin{}:", for_num);
             if let Some(Ast::OneNode {
                 node_kind: _,
                 hs,
             }) = *condition {
-                gen(*hs)?;                  // 結果はraxに格納されている
+                gen(*hs)?;
+                println!("  pop rax");      // 結果はraxに格納されている
                 println!("  cmp rax, 0");
             }
             println!("  je .Lend{}", for_num);
@@ -231,6 +235,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                 hs,
             }) = *change{
                 gen(*hs)?;
+                println!("  pop rax");      // 結果はraxに格納されている
             }
             println!("  jmp .Lbegin{}", for_num);
             println!(".Lend{}:", for_num);

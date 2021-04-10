@@ -8,7 +8,6 @@ mod generator;
 fn main() {
     use token::Token;
     use node::Ast;
-    use generator;
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
@@ -44,7 +43,7 @@ fn main() {
     println!("  push rbp");
     println!("  mov rbp, rsp");
     println!("  sub rsp, {}", variable_num * 8);
-    println!("{:?}", asts.0);
+    // println!("{:?}", asts.0);
     for ast in asts.0.into_iter() {
         match generator::gen(ast) {
             Ok(_) => (),
@@ -53,9 +52,8 @@ fn main() {
                 process::exit(1);
             }
         }
-        // if, while, などではstmatが一つのAstに複数含まれるため、
-        // それぞれのexprの計算結果が余分にstackに積まれていき
-        // 最終的な値がstackからpopされるようになっているが問題なし
+        // forではstmtが複数回実行されるため
+        // 繰り返させ回数分結果がstackにつまれ最後のstmtの結果のみmainにてpop raxされる
 
         // 最終的な値がstackに残っているため
         println!("  pop rax");

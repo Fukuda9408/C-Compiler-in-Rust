@@ -11,6 +11,8 @@ pub enum TokenKind {
     Minus,
     LParen,
     RParen,
+    LCuryBra,
+    RCuryBra,
     Asterisk,
     Slash,
     Large,      // >
@@ -110,6 +112,8 @@ impl Token {
                 b'-' => tokenize_except_num!(TokenKind::Minus),
                 b')' => tokenize_except_num!(TokenKind::RParen),
                 b'(' => tokenize_except_num!(TokenKind::LParen),
+                b'{' => tokenize_except_num!(TokenKind::LCuryBra),
+                b'}' => tokenize_except_num!(TokenKind::RCuryBra),
                 b'*' => tokenize_except_num!(TokenKind::Asterisk),
                 b'/' => tokenize_except_num!(TokenKind::Slash),
                 b'<' => {
