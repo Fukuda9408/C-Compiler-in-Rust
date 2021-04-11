@@ -69,25 +69,25 @@ pub enum NodeKind {
     Equal,      // ==
     NotEqual,   // !=
     Substitution,   // =
-    If(usize),      // elseナシのif
-    IfElse,  // elseアリのif
-    Else(usize),
-    While(usize),
 }
 
 #[derive(Debug)]
 pub enum OneNodeKind {
     Return,
-    For(usize),     // stmtのみ
+    Block,
 }
 
 #[derive(Debug)]
 pub enum Ast {
     Num(i32),
     Ident(String, usize),
-    OneNode {
+    ReturnNode {
         node_kind: OneNodeKind,
         hs: Box<Ast>,
+    },
+    BlockNode {
+        node_kind: OneNodeKind,
+        hs: Box<Vec<Ast>>,
     },
     Node {
         node_kind: NodeKind,
@@ -100,7 +100,23 @@ pub enum Ast {
         condition: Box<Option<Ast>>,
         change: Box<Option<Ast>>,
         stmt: Box<Ast>,
-    }
+    },
+    IfNode {
+        for_num: usize,
+        condition: Box<Ast>,
+        stmt: Box<Ast>,
+    },
+    IfElseNode {
+        for_num: usize,
+        condition: Box<Ast>,
+        stmt_1: Box<Ast>,
+        stmt_2: Box<Ast>,
+    },
+    WhileNode {
+        for_num: usize,
+        condition: Box<Ast>,
+        stmt: Box<Ast>,
+    },
 }
 
 macro_rules! match_token {
@@ -186,8 +202,16 @@ impl Ast {
         }
     }
 
-    fn one_node(node_kind: OneNodeKind, hs: Ast) -> Self {
-        Ast::OneNode {
+    fn return_node(node_kind: OneNodeKind, hs: Ast) -> Self {
+        Ast::ReturnNode {
+            node_kind,
+            hs: Box::new(hs),
+        }
+    }
+
+
+    fn block_node(node_kind: OneNodeKind, hs: Vec<Ast>) -> Self {
+        Ast::BlockNode {
             node_kind,
             hs: Box::new(hs),
         }
@@ -199,6 +223,31 @@ impl Ast {
             initial: Box::new(initilal),
             condition: Box::new(condtion),
             change: Box::new(change),
+            stmt: Box::new(stmt),
+        }
+    }
+
+    fn if_node(for_num: usize, condtion: Ast, stmt: Ast) -> Self {
+        Ast::IfNode {
+            for_num,
+            condition: Box::new(condtion),
+            stmt: Box::new(stmt),
+        }
+    }
+
+    fn if_else_node(for_num: usize, condtion: Ast, stmt_1: Ast, stmt_2: Ast) -> Self {
+        Ast::IfElseNode {
+            for_num,
+            condition: Box::new(condtion),
+            stmt_1: Box::new(stmt_1),
+            stmt_2: Box::new(stmt_2),
+        }
+    }
+
+    fn while_node(for_num: usize, condtion: Ast, stmt: Ast) -> Self {
+        Ast::WhileNode {
+            for_num,
+            condition: Box::new(condtion),
             stmt: Box::new(stmt),
         }
     }
@@ -241,7 +290,7 @@ impl Ast {
                     match_token!(TokenKind::Return,_pos) => {
                         let expr = Ast::expr(tokens, variable_list)?;
                         match tokens.next().unwrap() {
-                            match_token!(TokenKind::SemiColon, pos) => Ok(Ast::one_node(OneNodeKind::Return, expr)),
+                            match_token!(TokenKind::SemiColon, _pos) => Ok(Ast::return_node(OneNodeKind::Return, expr)),
                             match_token_nothing!(pos) => Err(AstError::require_semicolon(pos)),
                         }
                     },
@@ -262,12 +311,12 @@ impl Ast {
                                                 match tokens.next().unwrap() {
                                                     match_token!(TokenKind::Else,_pos) => {
                                                         let stmt_second = Ast::stmt(tokens, variable_list, control_val)?;
-                                                        return Ok(Ast::node(NodeKind::IfElse, expr, Ast::node(NodeKind::Else(control_val.val_if_else()), stmt, stmt_second)))
+                                                        Ok(Ast::if_else_node(control_val.val_if_else(), expr, stmt, stmt_second))
                                                     },
                                                     _ => unreachable!(),
                                                 }
                                             }
-                                            _ => return Ok(Ast::node(NodeKind::If(control_val.val_if_else()), expr, stmt))
+                                            _ => Ok(Ast::if_node(control_val.val_if_else(), expr, stmt))
                                         }
                                     },
                                     _ => Err(AstError::unclosed_parenth(pos)),
@@ -288,7 +337,8 @@ impl Ast {
                                 match tokens.next().unwrap() {
                                     match_token!(TokenKind::RParen,_pos) => {
                                         let stmt = Ast::stmt(tokens, variable_list, control_val)?;
-                                        Ok(Ast::node(NodeKind::While(control_val.val_while()), expr, stmt))
+                                        // Ok(Ast::node(NodeKind::While(control_val.val_while()), expr, stmt))
+                                        Ok(Ast::while_node(control_val.val_while(), expr, stmt))
                                     },
                                     _ => Err(AstError::unclosed_parenth(pos)),
                                 }
@@ -326,9 +376,7 @@ impl Ast {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
-                                                                                Ok(Ast::for_node(for_num, None, None, None,
-                                                                                    Ast::one_node(OneNodeKind::For(for_num), stmt))
-                                                                                )
+                                                                                Ok(Ast::for_node(for_num, None, None, None, stmt))
                                                                             },
                                                                             _ => unreachable!(),
                                                                         }
@@ -342,10 +390,7 @@ impl Ast {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
-                                                                                Ok(Ast::for_node(for_num, None, None,
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_third)),
-                                                                                    Ast::one_node(OneNodeKind::For(for_num), stmt))
-                                                                                )
+                                                                                Ok(Ast::for_node(for_num, None, None, Some(expr_third), stmt))
                                                                             },
                                                                             _ => Err(AstError::not_pattern_matching(pos))
                                                                         }
@@ -370,11 +415,7 @@ impl Ast {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
-                                                                                Ok(Ast::for_node(for_num, None,
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_second)),
-                                                                                    None,
-                                                                                    Ast::one_node(OneNodeKind::For(for_num), stmt))
-                                                                                )
+                                                                                Ok(Ast::for_node(for_num, None, Some(expr_second), None, stmt))
                                                                             },
                                                                             _ => unreachable!(),
                                                                         }
@@ -388,11 +429,7 @@ impl Ast {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
-                                                                                Ok(Ast::for_node(for_num, None,
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_second)),
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_third)),
-                                                                                    Ast::one_node(OneNodeKind::For(for_num), stmt))
-                                                                                )
+                                                                                Ok(Ast::for_node(for_num, None, Some(expr_second), Some(expr_third), stmt))
                                                                             },
                                                                             _ => Err(AstError::not_pattern_matching(pos))
                                                                         }
@@ -428,12 +465,7 @@ impl Ast {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
-                                                                                Ok(Ast::for_node(for_num,
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_first)),
-                                                                                    None,
-                                                                                    None,
-                                                                                    Ast::one_node(OneNodeKind::For(for_num), stmt))
-                                                                                )
+                                                                                Ok(Ast::for_node(for_num, Some(expr_first), None, None, stmt))
                                                                             },
                                                                             _ => unreachable!(),
                                                                         }
@@ -447,12 +479,7 @@ impl Ast {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
-                                                                                Ok(Ast::for_node(for_num,
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_first)),
-                                                                                    None,
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_third)),
-                                                                                    Ast::one_node(OneNodeKind::For(for_num), stmt))
-                                                                                )
+                                                                                Ok(Ast::for_node(for_num, Some(expr_first), None, Some(expr_third), stmt))
                                                                             },
                                                                             _ => Err(AstError::not_pattern_matching(pos))
                                                                         }
@@ -477,12 +504,7 @@ impl Ast {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
-                                                                                Ok(Ast::for_node(for_num,
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_first)),
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_second)),
-                                                                                    None,
-                                                                                    Ast::one_node(OneNodeKind::For(for_num), stmt))
-                                                                                )
+                                                                                Ok(Ast::for_node(for_num, Some(expr_first), Some(expr_second), None, stmt))
                                                                             },
                                                                             _ => unreachable!(),
                                                                         }
@@ -496,12 +518,7 @@ impl Ast {
                                                                                 // "for" "(" expr? ";" expr? ";" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
-                                                                                Ok(Ast::for_node(for_num,
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_first)),
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_second)),
-                                                                                    Some(Ast::one_node(OneNodeKind::For(for_num), expr_third)),
-                                                                                    Ast::one_node(OneNodeKind::For(for_num), stmt))
-                                                                                )
+                                                                                Ok(Ast::for_node(for_num, Some(expr_first), Some(expr_second), Some(expr_third), stmt))
                                                                             },
                                                                             _ => Err(AstError::not_pattern_matching(pos))
                                                                         }
@@ -523,11 +540,31 @@ impl Ast {
                     },
                     _ => unreachable!(),
                 }
-            }
+            },
+            match_token!(TokenKind::LCuryBra, _pos) => {
+                match tokens.next().unwrap() {
+                    match_token!(TokenKind::LCuryBra, _pos) => {
+                        let mut res_stmt: Vec<Ast> = Vec::new();
+                        loop {
+                            let stmt = Ast::stmt(tokens, variable_list, control_val)?;
+                            res_stmt.push(stmt);
+                            // エラー処理 todo
+                            if tokens.peek().unwrap().val == TokenKind::RCuryBra {
+                                match tokens.next().unwrap() {
+                                    match_token!(TokenKind::RCuryBra, _pos) => break,
+                                    _ => unreachable!(),
+                                }
+                            }
+                        }
+                        Ok(Ast::block_node(OneNodeKind::Block, res_stmt))
+                    }
+                    _ => unreachable!(),
+                }
+            },
             _ => {
                 let expr = Ast::expr(tokens, variable_list);
                 match tokens.next().unwrap() {
-                    match_token!(TokenKind::SemiColon,_pos) => expr,
+                    match_token!(TokenKind::SemiColon,_pos) => Ok(expr?),
                     match_token_nothing!(pos) => Err(AstError::require_semicolon(pos)),
                 }
             }

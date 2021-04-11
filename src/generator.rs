@@ -1,7 +1,7 @@
 use std::error;
 use std::fmt;
 
-use crate::node::{Ast, NodeKind, OneNodeKind};
+use crate::node::{Ast, NodeKind};
 
 #[derive(Debug, Clone, Copy)]
 enum GeneratorErrorKind {
@@ -68,25 +68,29 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             println!("# Local Variable Read finish");
             Ok(())
         }
-        Ast::OneNode {
-            node_kind,
+        Ast::ReturnNode {
+            node_kind: _,
             hs,
         } => {
-            match node_kind {
-                OneNodeKind::Return => {
-                    println!("# Return start");
-                    gen(*hs)?;
-                    // stackにexprの値が積まれている
-                    println!("  pop rax");
-                    println!("  mov rsp, rbp");
-                    println!("  pop rbp");
-                    println!("  ret");
-                    println!("# Return finish");
-                },
-                OneNodeKind::For(_) => unreachable!(),
-            }
+            println!("# Return start");
+            gen(*hs)?;
+            // stackにexprの値が積まれている
+            println!("  pop rax");
+            println!("  mov rsp, rbp");
+            println!("  pop rbp");
+            println!("  ret");
+            println!("# Return finish");
             Ok(())
         },
+        Ast::BlockNode {
+            node_kind: _,
+            hs,
+        } => {
+            for stmt in (*hs).into_iter() {
+                gen(stmt)?;
+            }
+            Ok(())
+        }
         Ast::Node {
             node_kind,
             lhs,
@@ -105,49 +109,6 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                     // 右辺値がstackに積まれる
                     println!("  push rdi");
                     println!("# Substitution finish");
-                },
-                NodeKind::If(_) | NodeKind::IfElse | NodeKind::Else(_) | NodeKind::While(_) => {
-                    match node_kind {
-                        NodeKind::If(num) => {
-                            println!("# If start");
-                            gen(*lhs)?;
-                            println!("  pop rax");      // 結果がstackに積まれている
-                            println!("  cmp rax, 0");   // 偽: 0, 真: 1
-                            println!("  je .Lend{}", num);
-                            gen(*rhs)?;
-                            println!(".Lend{}:", num);
-                            println!("# If finish");
-                        },
-                        NodeKind::IfElse => {
-                            println!("# If Else start");
-                            gen(*lhs)?;
-                            println!("  pop rax");      // 結果がstackに積まれている
-                            println!("  cmp rax, 0");   // 偽: 0, 真: 1
-                            gen(*rhs)?;         // Else Nodeを呼び出す
-                        },
-                        NodeKind::Else(num) => {
-                            println!("  je .Lelse{}", num);
-                            gen(*lhs)?;
-                            println!("  jmp .Lend{}", num);
-                            println!(".Lelse{}:", num);
-                            gen(*rhs)?;
-                            println!(".Lend{}:", num);
-                            println!("# If Else finish");
-                        },
-                        NodeKind::While(num) => {
-                            println!("# While start");
-                            println!(".Lbegin{}:", num);
-                            gen(*lhs)?;
-                            println!("  pop rax");      // 結果がraxに格納されている
-                            println!("  cmp rax, 0");   // 偽: 0, 真: 1
-                            println!("  je .Lend{}", num);
-                            gen(*rhs)?;
-                            println!("  jmp .Lbegin{}", num);
-                            println!(".Lend{}:", num);
-                            println!("# While finish");
-                        }
-                        _ => unreachable!(),
-                    }
                 },
                 _ => {
                     println!("# Arithmetic start");
@@ -186,10 +147,6 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                             println!("  setne al");
                             println!("  movzb rax, al");
                         },
-                        NodeKind::If(_) => {},
-                        NodeKind::IfElse => unreachable!(),
-                        NodeKind::Else(_) => unreachable!(),
-                        NodeKind::While(_) => unreachable!(),
                     }
                     // 計算結果がstackに積まれる
                     println!("  push rax");
@@ -198,6 +155,57 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             }
             Ok(())
         },
+        Ast::IfNode {
+            for_num,
+            condition,
+            stmt,
+        } => {
+            println!("# If start");
+            gen(*condition)?;
+            println!("  pop rax");      // 結果がstackに積まれている
+            println!("  cmp rax, 0");   // 偽: 0, 真: 1
+            println!("  je .Lend{}", for_num);
+            gen(*stmt)?;
+            println!(".Lend{}:", for_num);
+            println!("# If finish");
+            Ok(())
+        },
+        Ast::IfElseNode {
+            for_num,
+            condition,
+            stmt_1,
+            stmt_2,
+        } => {
+            println!("# If Else start");
+            gen(*condition)?;
+            println!("  pop rax");      // 結果がstackに積まれている
+            println!("  cmp rax, 0");   // 偽: 0, 真: 1
+            println!("  je .Lelse{}", for_num);
+            gen(*stmt_1)?;
+            println!("  jmp .Lend{}", for_num);
+            println!(".Lelse{}:", for_num);
+            gen(*stmt_2)?;
+            println!(".Lend{}:", for_num);
+            println!("# If Else finish");
+            Ok(())
+        },
+        Ast::WhileNode {
+            for_num,
+            condition,
+            stmt,
+        } => {
+            println!("# While start");
+            println!(".Lbegin{}:", for_num);
+            gen(*condition)?;
+            println!("  pop rax");      // 結果がraxに格納されている
+            println!("  cmp rax, 0");   // 偽: 0, 真: 1
+            println!("  je .Lend{}", for_num);
+            gen(*stmt)?;
+            println!("  jmp .Lbegin{}", for_num);
+            println!(".Lend{}:", for_num);
+            println!("# While finish");
+            Ok(())
+        }
         Ast::ForNode {
             for_num,
             initial,
@@ -207,34 +215,20 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
         }=> {
             // exprの結果は使用しないためpopする
             println!("# For start");
-            if let Some(Ast::OneNode {
-                node_kind: _,
-                hs,
-            }) = *initial{
-                gen(*hs)?;
+            if let Some(expr_first) = *initial {
+                gen(expr_first)?;
                 println!("  pop rax");      // 結果はraxに格納されている
-            }
+            };
             println!(".Lbegin{}:", for_num);
-            if let Some(Ast::OneNode {
-                node_kind: _,
-                hs,
-            }) = *condition {
-                gen(*hs)?;
+            if let Some(expr_second) = *condition {
+                gen(expr_second)?;
                 println!("  pop rax");      // 結果はraxに格納されている
                 println!("  cmp rax, 0");
             }
             println!("  je .Lend{}", for_num);
-            if let Ast::OneNode {
-                node_kind: _,
-                hs,
-            } = *stmt {
-                gen(*hs)?;
-            }
-            if let Some(Ast::OneNode {
-                node_kind: _,
-                hs,
-            }) = *change{
-                gen(*hs)?;
+            gen(*stmt)?;
+            if let Some(expr_third) = *change{
+                gen(expr_third)?;
                 println!("  pop rax");      // 結果はraxに格納されている
             }
             println!("  jmp .Lbegin{}", for_num);
