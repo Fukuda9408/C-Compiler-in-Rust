@@ -81,6 +81,7 @@ pub enum OneNodeKind {
 pub enum Ast {
     Num(i32),
     Ident(String, usize),
+    Func(String),
     ReturnNode {
         node_kind: OneNodeKind,
         hs: Box<Ast>,
@@ -265,7 +266,7 @@ impl Ast {
     // add           = mul ("+" mul | "-" mul) *
     // mul          = unary ("*" unary | "/" unary)*
     // unary        = ("+" | "-")? primary
-    // primary      = num | ident | "(" expr ")"
+    // primary      = num | ident ("(" ")")? | "(" expr ")"
     pub fn program<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<(Vec<Ast>, usize), AstError>
     where
         Tokens: Iterator<Item = Token>,
@@ -771,16 +772,34 @@ impl Ast {
         match tokens.next().unwrap() {
             match_token_num!(num) => Ok(Ast::num(num)),
             match_token_ident!(str) => {
-                let ident_str = str.clone();
-                let pos = match variable_list.get(&str) {
-                    Some(&pos) => pos,
-                    None => {
-                        let variable_list_len = variable_list.len();
-                        variable_list.insert(str, variable_list_len + 1);
-                        variable_list_len + 1
+                match tokens.peek().unwrap() {
+                    match_token!(TokenKind::LParen, _pos) => {
+                        match tokens.next().unwrap() {
+                            match_token!(TokenKind::LParen, pos) => {
+                                match tokens.peek().unwrap() {
+                                    match_token!(TokenKind::RParen, _pos) => {
+                                        tokens.next();
+                                        Ok(Ast::Func(str))
+                                    }
+                                    _ => Err(AstError::unclosed_parenth(pos))
+                                }
+                            }
+                            _ => unreachable!(),
+                        }
+                    },
+                    _ => {
+                        let ident_str = str.clone();
+                        let pos = match variable_list.get(&str) {
+                            Some(&pos) => pos,
+                            None => {
+                                let variable_list_len = variable_list.len();
+                                variable_list.insert(str, variable_list_len + 1);
+                                variable_list_len + 1
+                            }
+                        };
+                        Ok(Ast::Ident(ident_str, pos))
                     }
-                };
-                Ok(Ast::Ident(ident_str, pos))
+                }
             },
             match_token!(TokenKind::LParen,pos) => {
                 // "(" epxr ")"

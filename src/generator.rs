@@ -235,6 +235,10 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             println!(".Lend{}:", for_num);
             println!("# For finish");
             Ok(())
+        },
+        Ast::Func(ident) => {
+            println!("  call {}", ident);
+            Ok(())
         }
     }
 }
