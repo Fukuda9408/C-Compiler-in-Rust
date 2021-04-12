@@ -107,7 +107,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                     // rdiに値
                     println!("  mov [rax], rdi");
                     // 右辺値がstackに積まれる
-                    println!("  push rdi");
+                    // println!("  push rdi");
                     println!("# Substitution finish");
                 },
                 _ => {
@@ -217,7 +217,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             println!("# For start");
             if let Some(expr_first) = *initial {
                 gen(expr_first)?;
-                println!("  pop rax");      // 結果はraxに格納されている
+                // println!("  pop rax");      // 結果はraxに格納されている
             };
             println!(".Lbegin{}:", for_num);
             if let Some(expr_second) = *condition {
@@ -229,7 +229,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             gen(*stmt)?;
             if let Some(expr_third) = *change{
                 gen(expr_third)?;
-                println!("  pop rax");      // 結果はraxに格納されている
+                // println!("  pop rax");      // 結果はraxに格納されている
             }
             println!("  jmp .Lbegin{}", for_num);
             println!(".Lend{}:", for_num);
