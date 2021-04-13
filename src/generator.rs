@@ -257,6 +257,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                 }
             }
             println!("  call {}", func_name);
+            println!(" push rax");      // 関数の結果を代入する際に結果がstackに積まれている前提で行われるため
             Ok(())
         }
         Ast::FuncNode {

@@ -298,12 +298,12 @@ impl Ast {
     }
     // program      = func*
     // func         = ident ( "(" ( ident ",")* ident? ")" ) "{" stmt* "}"
-    // stmt         = expr ";"
+    // stmt         = expr ";}"
     //              | "{" stmt* "}"
     //              | "if" "(" expr ")" stmt ("else" stmt)?
     //              | "while" "(" expr ")" stmt
-    //              | "for" "(" expr? ";" expr? ";" expr? ")" stmt
-    //              |return" expr ";"
+    //              | "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
+    //              |return" expr ";}"
     // expr         = assign
     // assign       = equality ("=" assign)?
     // equality     = relational ("==" relational | "!=" relational)*
@@ -392,7 +392,6 @@ impl Ast {
                             }
                             match_token_nothing!(pos) => return Err(AstError::require_left_parenth(pos))
                         }
-                        println!("{:?}", variable_list);
                         Ok(Ast::func_node(argument_num, variable_list.len(), str, Ast::block_node(OneNodeKind::Block, res_stmt)))
                     },
                     match_token_nothing!(pos) => Err(AstError::require_left_parenth(pos))
@@ -477,25 +476,25 @@ impl Ast {
                     match_token!(TokenKind::For,pos) => {
                         match tokens.next().unwrap() {
                             match_token!(TokenKind::LParen,_pos) => {
-                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                 //        ^
                                 match tokens.peek().unwrap() {
                                     match_token!(TokenKind::SemiColon,_pos) => {
                                         match tokens.next().unwrap() {
                                             match_token!(TokenKind::SemiColon,_pos) => {
-                                            // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                            // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                             //                  ^
                                                 match tokens.peek().unwrap() {
                                                     match_token!(TokenKind::SemiColon,_pos) => {
                                                         match tokens.next().unwrap() {
                                                             match_token!(TokenKind::SemiColon,_pos) => {
-                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                 //                            ^
                                                                 match tokens.peek().unwrap() {
                                                                     match_token!(TokenKind::RParen,_pos) => {
                                                                         match tokens.next().unwrap() {
                                                                             match_token!(TokenKind::RParen,_pos) => {
-                                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                                                                 Ok(Ast::for_node(for_num, None, None, None, stmt))
@@ -505,11 +504,11 @@ impl Ast {
                                                                     },
                                                                     _ => {
                                                                         let expr_third = Ast::expr(tokens, variable_list)?;
-                                                                        // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                        // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                         //                                   ^
                                                                         match tokens.next().unwrap() {
                                                                             match_token!(TokenKind::RParen,_pos) => {
-                                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                                                                 Ok(Ast::for_node(for_num, None, None, Some(expr_third), stmt))
@@ -524,17 +523,17 @@ impl Ast {
                                                     }
                                                     _ => {
                                                         let expr_second = Ast::expr(tokens, variable_list)?;
-                                                        // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                        // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                         //                         ^
                                                         match tokens.next().unwrap() {
                                                             match_token!(TokenKind::SemiColon,_pos) => {
-                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                 //                            ^
                                                                 match tokens.peek().unwrap() {
                                                                     match_token!(TokenKind::RParen,_pos) => {
                                                                         match tokens.next().unwrap() {
                                                                             match_token!(TokenKind::RParen,_pos) => {
-                                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                                                                 Ok(Ast::for_node(for_num, None, Some(expr_second), None, stmt))
@@ -544,11 +543,11 @@ impl Ast {
                                                                     },
                                                                     _ => {
                                                                         let expr_third = Ast::expr(tokens, variable_list)?;
-                                                                        // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                        // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                         //                                   ^
                                                                         match tokens.next().unwrap() {
                                                                             match_token!(TokenKind::RParen,_pos) => {
-                                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                                                                 Ok(Ast::for_node(for_num, None, Some(expr_second), Some(expr_third), stmt))
@@ -568,23 +567,23 @@ impl Ast {
                                     },
                                     _ => {
                                         let expr_first = Ast::expr(tokens, variable_list)?;
-                                        // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                        // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                         //               ^
                                         match tokens.next().unwrap() {
                                             match_token!(TokenKind::SemiColon,_pos) => {
-                                            // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                            // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                             //                  ^
                                                 match tokens.peek().unwrap() {
                                                     match_token!(TokenKind::SemiColon,_pos) => {
                                                         match tokens.next().unwrap() {
                                                             match_token!(TokenKind::SemiColon,_pos) => {
-                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                 //                            ^
                                                                 match tokens.peek().unwrap() {
                                                                     match_token!(TokenKind::RParen,_pos) => {
                                                                         match tokens.next().unwrap() {
                                                                             match_token!(TokenKind::RParen,_pos) => {
-                                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                                                                 Ok(Ast::for_node(for_num, Some(expr_first), None, None, stmt))
@@ -594,11 +593,11 @@ impl Ast {
                                                                     },
                                                                     _ => {
                                                                         let expr_third = Ast::expr(tokens, variable_list)?;
-                                                                        // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                        // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                         //                                   ^
                                                                         match tokens.next().unwrap() {
                                                                             match_token!(TokenKind::RParen,_pos) => {
-                                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                                                                 Ok(Ast::for_node(for_num, Some(expr_first), None, Some(expr_third), stmt))
@@ -613,17 +612,17 @@ impl Ast {
                                                     }
                                                     _ => {
                                                         let expr_second = Ast::expr(tokens, variable_list)?;
-                                                        // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                        // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                         //                         ^
                                                         match tokens.next().unwrap() {
                                                             match_token!(TokenKind::SemiColon,_pos) => {
-                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                 //                            ^
                                                                 match tokens.peek().unwrap() {
                                                                     match_token!(TokenKind::RParen,_pos) => {
                                                                         match tokens.next().unwrap() {
                                                                             match_token!(TokenKind::RParen,_pos) => {
-                                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                                                                 Ok(Ast::for_node(for_num, Some(expr_first), Some(expr_second), None, stmt))
@@ -633,11 +632,11 @@ impl Ast {
                                                                     },
                                                                     _ => {
                                                                         let expr_third = Ast::expr(tokens, variable_list)?;
-                                                                        // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                        // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                         //                                   ^
                                                                         match tokens.next().unwrap() {
                                                                             match_token!(TokenKind::RParen,_pos) => {
-                                                                                // "for" "(" expr? ";" expr? ";" expr? ")" stmt
+                                                                                // "for" "(" expr? ";}" expr? ";}" expr? ")" stmt
                                                                                 //                                      ^
                                                                                 let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                                                                 Ok(Ast::for_node(for_num, Some(expr_first), Some(expr_second), Some(expr_third), stmt))

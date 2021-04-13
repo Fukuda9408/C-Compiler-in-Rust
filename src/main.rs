@@ -23,7 +23,7 @@ fn main() {
             process::exit(1);
         }
     };
-    println!("{:?}", tokens);
+    // println!("{:?}", tokens);
     let mut token = tokens.into_iter().peekable();
     let asts = match Ast::program(&mut token) {
         Ok(ast) => ast,
