@@ -11,6 +11,8 @@ pub enum AstErrorKind {
     NotPatternMatching,
     RequirSemicolon,
     RequireComma,
+    RequireLeftParenth,
+    UndeclaredFunction,
     EoF,
 }
 
@@ -44,8 +46,16 @@ impl AstError {
         Self::new(AstErrorKind::RequirSemicolon, pos)
     }
 
+    pub fn require_left_parenth(pos: usize) -> Self {
+        Self::new(AstErrorKind::RequireLeftParenth, pos)
+    }
+
     pub fn require_commma(pos: usize) -> Self {
         Self::new(AstErrorKind::RequireComma, pos)
+    }
+
+    pub fn undecrlared_function(pos: usize) -> Self {
+        Self::new(AstErrorKind::UndeclaredFunction, pos)
     }
 }
 
@@ -57,6 +67,8 @@ impl fmt::Display for AstError {
             NotPatternMatching => write!(f, "Not Pattern"),
             RequirSemicolon => write!(f, "Require Semicolon"),
             RequireComma => write!(f, "Require Comma"),
+            RequireLeftParenth => write!(f, "Require Left Parenth"),
+            UndeclaredFunction => write!(f, "Undeclared Function"),
             EoF => write!(f, "EoF in imcomplement position"),
         }
     }
@@ -128,6 +140,12 @@ pub enum Ast {
         condition: Box<Ast>,
         stmt: Box<Ast>,
     },
+    FuncNode {
+        argument_num: usize,        // Argument
+        local_variable_num: usize,
+        func_name: String,
+        stmt_block: Box<Ast>,
+    }
 }
 
 macro_rules! match_token {
@@ -269,7 +287,17 @@ impl Ast {
             stmt: Box::new(stmt),
         }
     }
-    // program      = stmt*
+
+    fn func_node(argument_num: usize, local_variable_num: usize, func_name: String, stmt_block: Ast) -> Self {
+        Ast::FuncNode {
+            argument_num,
+            local_variable_num,
+            func_name,
+            stmt_block: Box::new(stmt_block),
+        }
+    }
+    // program      = func*
+    // func         = ident ( "(" ( ident ",")* ident? ")" ) "{" stmt* "}"
     // stmt         = expr ";"
     //              | "{" stmt* "}"
     //              | "if" "(" expr ")" stmt ("else" stmt)?
@@ -285,18 +313,93 @@ impl Ast {
     // unary        = ("+" | "-")? primary
     // primary      = num | ident ( "(" (unary ",")* unary? ")" )? | "(" expr ")"
     // 本当はunaryのところは符号付数字であるが、これでも構文解析はできるためこれで行く
-    pub fn program<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<(Vec<Ast>, usize), AstError>
+    pub fn program<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Vec<Ast>, AstError>
     where
         Tokens: Iterator<Item = Token>,
     {
-        let mut ast_vec = Vec::new();
+        // 一つのfuncごとにvariable_listを持つ
+        // control_val(ラベルのための連番)はprogramで一つで問題なし
+        let mut func_list = Vec::new();
         let mut control_val = ControlVal::new();
-        let mut variable_list: HashMap<String, usize> = HashMap::new();
         while tokens.peek().unwrap().val != TokenKind::EOF {
-            let ast = Ast::stmt(tokens, &mut variable_list, &mut control_val)?;
-            ast_vec.push(ast);
+            let mut variable_list: HashMap<String, usize> = HashMap::new();
+            let func = Ast::func(tokens, &mut variable_list, &mut control_val)?;
+            func_list.push(func);
         }
-        Ok((ast_vec, variable_list.len()))
+        Ok(func_list)
+    }
+
+    fn func<Tokens>(tokens: &mut Peekable<Tokens>, variable_list: &mut HashMap<String, usize>, control_val: &mut ControlVal) -> Result<Ast, AstError>
+    where
+        Tokens: Iterator<Item = Token>,
+    {
+        match tokens.next().unwrap() {
+            match_token_ident!(str) => {
+                match tokens.next().unwrap() {
+                    match_token!(TokenKind::LParen, pos) => {
+                        let mut argument_num = 0;
+                        loop {
+                            match tokens.peek().unwrap() {
+                                match_token_ident!(_argument) => {
+                                    match tokens.next().unwrap() {
+                                        match_token_ident!(argument) => {
+                                            // argument_list(arugmentの参照に使用)
+                                            argument_num += 1;
+                                            // variable_list(ローカル変数の参照に使用, argumentもローカル変数として使用するため追加)
+                                            let variable_list_len = variable_list.len();
+                                            variable_list.insert(argument, variable_list_len + 1);
+
+                                            match tokens.peek().unwrap() {
+                                                match_token!(TokenKind::Comma, _pos) => {
+                                                    tokens.next();
+                                                    continue;
+                                                }
+                                                match_token!(TokenKind::RParen, _pos) => {
+                                                    tokens.next();
+                                                    break;
+                                                }
+                                                match_token_nothing!(pos) => return Err(AstError::not_pattern_matching(*pos))
+                                            }
+                                        }
+                                        _ => unreachable!(),
+                                    }
+                                },
+                                _ => {
+                                    match tokens.next().unwrap() {
+                                        match_token!(TokenKind::RParen, pos) => break,
+                                        _ => return Err(AstError::unclosed_parenth(pos))
+                                    }
+                                }
+                            }
+                        }
+                        // func()
+                        //      ^
+                        // ここまで構文解析が完了
+                        let mut res_stmt: Vec<Ast> = Vec::new();
+                        match tokens.next().unwrap() {
+                            match_token!(TokenKind::LCuryBra, _pos) => {
+                                loop {
+                                    let stmt = Ast::stmt(tokens, variable_list, control_val)?;
+                                    res_stmt.push(stmt);
+                                    // エラー処理 todo
+                                    if tokens.peek().unwrap().val == TokenKind::RCuryBra {
+                                        match tokens.next().unwrap() {
+                                            match_token!(TokenKind::RCuryBra, _pos) => break,
+                                            _ => unreachable!(),
+                                        }
+                                    }
+                                }
+                            }
+                            match_token_nothing!(pos) => return Err(AstError::require_left_parenth(pos))
+                        }
+                        println!("{:?}", variable_list);
+                        Ok(Ast::func_node(argument_num, variable_list.len(), str, Ast::block_node(OneNodeKind::Block, res_stmt)))
+                    },
+                    match_token_nothing!(pos) => Err(AstError::require_left_parenth(pos))
+                }
+            },
+            match_token_nothing!(pos) => Err(AstError::undecrlared_function(pos)),
+        }
     }
 
     fn stmt<Tokens>(tokens: &mut Peekable<Tokens>, variable_list: &mut HashMap<String, usize>, control_val: &mut ControlVal) -> Result<Ast, AstError>

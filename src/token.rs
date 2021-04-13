@@ -224,7 +224,7 @@ impl Token {
 
     fn tokenize_ident(input: &[u8], mut pos: usize) -> (String, usize) {
         let start = pos;
-        while pos < input.len() && !b" \t\n+-*/()><=!;".contains(&input[pos]) {
+        while pos < input.len() && !b" \t\n+-*/()><=!;,".contains(&input[pos]) {
             pos += 1;
         }
         let ident = String::from_utf8(input[start..pos].to_vec())

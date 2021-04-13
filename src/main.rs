@@ -23,7 +23,7 @@ fn main() {
             process::exit(1);
         }
     };
-    // println!("{:?}", tokens);
+    println!("{:?}", tokens);
     let mut token = tokens.into_iter().peekable();
     let asts = match Ast::program(&mut token) {
         Ok(ast) => ast,
@@ -33,19 +33,19 @@ fn main() {
         }
     };
     println!("{:?}", asts);
-    let variable_num = asts.1;
+    // let variable_num = asts.1;
     println!(".intel_syntax noprefix");
     println!(".global main");
-    println!("main:");
+    // println!("main:");
 
-    // プロローグ
-    // 変数の個数はvariable_numに格納
-    println!("  push rbp");
-    println!("  mov rbp, rsp");
-    println!("  sub rsp, {}", variable_num * 8);
-    for ast in asts.0.into_iter() {
+    // // プロローグ
+    // // 変数の個数はvariable_numに格納
+    // println!("  push rbp");
+    // println!("  mov rbp, rsp");
+    // println!("  sub rsp, {}", variable_num * 8);
+    for ast in asts.into_iter() {
         match generator::gen(ast) {
-            Ok(_) => (),
+            Ok(_) => println!(""),
             Err(e) => {
                 eprintln!("{}", e);
                 process::exit(1);
@@ -54,9 +54,9 @@ fn main() {
         // nodeのほうでstmtの際にpush raxをする
     }
 
-    // エピローグ
-    // 最後の式の値がraxに格納されており、それが返り値
-    println!("  mov rsp, rbp");
-    println!("  pop rbp");
-    println!("  ret");
+    // // エピローグ
+    // // 最後の式の値がraxに格納されており、それが返り値
+    // println!("  mov rsp, rbp");
+    // println!("  pop rbp");
+    // println!("  ret");
 }

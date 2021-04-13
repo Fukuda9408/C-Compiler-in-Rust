@@ -67,7 +67,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             // 変数の値がstackに積まれる
             println!("# Local Variable Read finish");
             Ok(())
-        }
+        },
         Ast::ReturnNode {
             node_kind: _,
             hs,
@@ -259,5 +259,50 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             println!("  call {}", func_name);
             Ok(())
         }
+        Ast::FuncNode {
+            argument_num,
+            local_variable_num,
+            func_name,
+            stmt_block,
+        } => {
+            println!("{}:", func_name);
+            println!("  push rbp");
+            println!("  mov rbp, rsp");
+            // ローカル変数の定義
+            println!("  sub rsp, {}", local_variable_num * 8);
+            // -------------
+            //    r9
+            // -------------
+            //    r8
+            // -------------
+            //    rcx
+            // -------------
+            //    rdx
+            // -------------
+            //    rsi
+            // -------------
+            //    rdi
+            // -------------   <-    今のrbp
+            //    前のrbp
+            // -------------
+            // return addrss
+            //
+            for i in 0..argument_num {
+                match i {
+                    0 => println!("  mov [rbp - 0x08], rdi"),
+                    1 => println!("  mov [rbp - 0x10], rsi"),
+                    2 => println!("  mov [rbp - 0x18], rdx"),
+                    3 => println!("  mov [rbp - 0x20], rcx"),
+                    4 => println!("  mov [rbp - 0x28], r8"),
+                    5 => println!("  mov [rbp - 0x30], r9"),
+                    _ => unreachable!(),
+                }
+            }
+            gen(*stmt_block)?;
+            println!("  mov rsp, rbp");
+            println!("  pop rbp");
+            println!("  ret");
+            Ok(())
+        },
     }
 }
