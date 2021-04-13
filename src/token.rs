@@ -70,27 +70,32 @@ impl fmt::Display for TokenizeError {
 impl error::Error for TokenizeError {}
 
 #[derive(Debug)]
+pub struct Location(pub usize, pub usize);
+
+#[derive(Debug)]
 pub struct Token {
     pub val: TokenKind,
-    pub pos: usize,
+    pub pos: Location,
+    pub line_num : usize
 }
 
 impl Token {
-    fn new(val: TokenKind, pos: usize) -> Self {
+    pub fn new(val: TokenKind, pos: Location, line_num: usize) -> Self {
         Token {
             val,
-            pos
+            pos,
+            line_num
         }
     }
 
-    pub fn tokenize(str: &[u8]) -> Result<Vec<Token>, TokenizeError> {
+    pub fn tokenize(str: &[u8], line_num: usize) -> Result<Vec<Token>, TokenizeError> {
         let mut result: Vec<Token> = Vec::new();
         let mut pos = 0;
 
         macro_rules! tokenize_except_num {
             ($token_kind:expr) => {
                 {
-                    let token = Token::new($token_kind, pos);
+                    let token = Token::new($token_kind, Location(pos, pos), line_num);
                     result.push(token);
                     pos += 1;
                 }
@@ -100,7 +105,7 @@ impl Token {
         macro_rules! tokenize_variable {
             () => {
                 let (ident, new_pos) = Token::tokenize_ident(str, pos);
-                let token = Token::new(TokenKind::Ident(ident), new_pos);
+                let token = Token::new(TokenKind::Ident(ident), Location(pos, new_pos), line_num);
                 result.push(token);
                 pos = new_pos;
             };
@@ -118,24 +123,27 @@ impl Token {
                 b'*' => tokenize_except_num!(TokenKind::Asterisk),
                 b'/' => tokenize_except_num!(TokenKind::Slash),
                 b'<' => {
+                    let start_pos = pos;
                     pos += 1;
                     match str[pos] {
                         b'=' => tokenize_except_num!(TokenKind::EqualSmall),
-                        _ => result.push(Token::new(TokenKind::Small, pos)),
+                        _ => result.push(Token::new(TokenKind::Small, Location(start_pos, pos), line_num)),
                     }
                 },
                 b'>' => {
+                    let start_pos = pos;
                     pos += 1;
                     match str[pos] {
                         b'=' => tokenize_except_num!(TokenKind::EqualLarge),
-                        _ => result.push(Token::new(TokenKind::Large, pos)),
+                        _ => result.push(Token::new(TokenKind::Large, Location(start_pos, pos), line_num)),
                     }
                 },
                 b'=' => {
+                    let start_pos = pos;
                     pos += 1;
                     match str[pos] {
                         b'=' => tokenize_except_num!(TokenKind::Equal),
-                        _ => result.push(Token::new(TokenKind::Substitution, pos)),
+                        _ => result.push(Token::new(TokenKind::Substitution, Location(start_pos, pos), line_num)),
                     }
                 },
                 b'!' => {
@@ -149,14 +157,14 @@ impl Token {
                 b',' => tokenize_except_num!(TokenKind::Comma),
                 b'0'..=b'9' => {
                     let (num, new_pos) = Token::tokenize_number(str, pos)?;
-                    let token = Token::new(TokenKind::Num(num), new_pos);
+                    let token = Token::new(TokenKind::Num(num), Location(pos, new_pos - 1), line_num);
                     result.push(token);
                     pos = new_pos;
                 },
                 b'i' => {
                     let (is_contains, new_pos) = Token::tokenize_str(str, pos, "if".as_bytes());
                     if is_contains {
-                        result.push(Token::new(TokenKind::If, new_pos));
+                        result.push(Token::new(TokenKind::If, Location(pos, new_pos - 1), line_num));
                         pos = new_pos;
                     } else {
                         tokenize_variable!();
@@ -165,7 +173,7 @@ impl Token {
                 b'f' => {
                     let (is_contains, new_pos) = Token::tokenize_str(str, pos, "for".as_bytes());
                     if is_contains {
-                        result.push(Token::new(TokenKind::For, new_pos));
+                        result.push(Token::new(TokenKind::For, Location(pos, new_pos - 1), line_num));
                         pos = new_pos;
                     } else {
                         tokenize_variable!();
@@ -174,7 +182,7 @@ impl Token {
                 b'e' => {
                     let (is_contains, new_pos) = Token::tokenize_str(str, pos, "else".as_bytes());
                     if is_contains {
-                        result.push(Token::new(TokenKind::Else, new_pos));
+                        result.push(Token::new(TokenKind::Else, Location(pos, new_pos - 1), line_num));
                         pos = new_pos;
                     } else {
                         tokenize_variable!();
@@ -183,7 +191,7 @@ impl Token {
                 b'r' => {
                     let (is_contains, new_pos) = Token::tokenize_str(str, pos, "return".as_bytes());
                     if is_contains {
-                        result.push(Token::new(TokenKind::Return, new_pos));
+                        result.push(Token::new(TokenKind::Return, Location(pos, new_pos - 1), line_num));
                         pos = new_pos;
                     } else {
                         tokenize_variable!();
@@ -192,7 +200,7 @@ impl Token {
                 b'w' => {
                     let (is_contains, new_pos) = Token::tokenize_str(str, pos, "while".as_bytes());
                     if is_contains {
-                        result.push(Token::new(TokenKind::While, new_pos));
+                        result.push(Token::new(TokenKind::While, Location(pos, new_pos - 1), line_num));
                         pos = new_pos;
                     } else {
                         tokenize_variable!();
@@ -203,7 +211,6 @@ impl Token {
                 }
             }
         }
-        result.push(Token::new(TokenKind::EOF, pos));
         Ok(result)
     }
 

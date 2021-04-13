@@ -1,13 +1,16 @@
 use std::env;
 use std::process;
+use std::fs::File;
+use std::io::{self, BufRead, BufReader};
 
 mod token;
 mod node;
 mod generator;
 
 fn main() {
-    use token::Token;
-    use node::Ast;
+    use token::{Token, TokenKind};
+    // use node::Ast;
+
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
@@ -15,48 +18,50 @@ fn main() {
         process::exit(1);
     }
 
-    let input = args[1].as_bytes();
-    let tokens = match Token::tokenize(input) {
-        Ok(tk) => tk,
-        Err(e) => {
-            eprintln!("{}", e);
-            process::exit(1);
-        }
-    };
-    // println!("{:?}", tokens);
-    let mut token = tokens.into_iter().peekable();
-    let asts = match Ast::program(&mut token) {
-        Ok(ast) => ast,
-        Err(e) => {
-            eprintln!("{}", e);
-            process::exit(1);
-        }
-    };
-    println!("{:?}", asts);
-    // let variable_num = asts.1;
-    println!(".intel_syntax noprefix");
-    println!(".global main");
-    // println!("main:");
+    let mut tokens: Vec<Token> = Vec::new();
+    let mut program = Vec::new();
 
-    // // プロローグ
-    // // 変数の個数はvariable_numに格納
-    // println!("  push rbp");
-    // println!("  mov rbp, rsp");
-    // println!("  sub rsp, {}", variable_num * 8);
-    for ast in asts.into_iter() {
-        match generator::gen(ast) {
-            Ok(_) => println!(""),
+    let mut last_line_len = 0;
+    let mut last_line_num = 0;
+    for (line_num, result) in BufReader::new(File::open(args[1].clone()).unwrap()).lines().enumerate() {
+        let l = result.unwrap();
+        // 後でprogramを参照するために1行ずつStringをpush
+        program.push(l.clone());
+
+        let input = l.as_bytes();
+        // 最後にEOFをtokensにpushするために必要な情報
+        last_line_len = input.len();
+        last_line_num = line_num;
+
+        match Token::tokenize(input, line_num) {
+            Ok(mut tk) => tokens.append(&mut tk),
             Err(e) => {
-                eprintln!("{}", e);
-                process::exit(1);
+            eprintln!("{}", e);
+            process::exit(1);
             }
         }
-        // nodeのほうでstmtの際にpush raxをする
     }
+    tokens.push(Token::new(TokenKind::EOF, token::Location(last_line_len, last_line_len), last_line_num));
+    println!("{:?}", tokens);
+    // let mut token = tokens.into_iter().peekable();
+    // let asts = match Ast::program(&mut token) {
+    //     Ok(ast) => ast,
+    //     Err(e) => {
+    //         eprintln!("{}", e);
+    //         process::exit(1);
+    //     }
+    // };
+    // println!(".intel_syntax noprefix");
+    // println!(".global main");
 
-    // // エピローグ
-    // // 最後の式の値がraxに格納されており、それが返り値
-    // println!("  mov rsp, rbp");
-    // println!("  pop rbp");
-    // println!("  ret");
+    // for ast in asts.into_iter() {
+    //     match generator::gen(ast) {
+    //         Ok(_) => println!(""),
+    //         Err(e) => {
+    //             eprintln!("{}", e);
+    //             process::exit(1);
+    //         }
+    //     }
+    // }
+    // Ok(())
 }
