@@ -242,14 +242,32 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
         },
         Ast::CallFuncNode {
             func_name,
-            hs: mut valiable_list,
+            hs: mut variable_list,
         } => {
-            loop {
-                match (*valiable_list).pop() {
-                    Some(num) => gen(num)?,
-                    None => break,
-                }
-            }
+            if let Some(num) = variable_list.pop() {
+                gen(num)?;
+                println!("  pop edi");
+            };
+            if let Some(num) = variable_list.pop() {
+                gen(num)?;
+                println!("  pop esi");
+            };
+            if let Some(num) = variable_list.pop() {
+                gen(num)?;
+                println!("  pop edx");
+            };
+            if let Some(num) = variable_list.pop() {
+                gen(num)?;
+                println!("  pop ecx");
+            };
+            if let Some(num) = variable_list.pop() {
+                gen(num)?;
+                println!("  pop r8d");
+            };
+            if let Some(num) = variable_list.pop() {
+                gen(num)?;
+                println!("  pop r9d");
+            };
             println!("  call {}", func_name);
             Ok(())
         }
