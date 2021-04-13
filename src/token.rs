@@ -23,6 +23,7 @@ pub enum TokenKind {
     NotEqual,   // !=
     Substitution,   // =
     SemiColon,  // ;
+    Comma,      // ,
     Return,
     If,
     Else,
@@ -145,6 +146,7 @@ impl Token {
                     }
                 },
                 b';' => tokenize_except_num!(TokenKind::SemiColon),
+                b',' => tokenize_except_num!(TokenKind::Comma),
                 b'0'..=b'9' => {
                     let (num, new_pos) = Token::tokenize_number(str, pos)?;
                     let token = Token::new(TokenKind::Num(num), new_pos);

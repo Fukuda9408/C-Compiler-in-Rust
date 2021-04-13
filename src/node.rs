@@ -10,6 +10,7 @@ pub enum AstErrorKind {
     UnclosedParenth,
     NotPatternMatching,
     RequirSemicolon,
+    RequireComma,
     EoF,
 }
 
@@ -42,6 +43,10 @@ impl AstError {
     pub fn require_semicolon(pos: usize) -> Self {
         Self::new(AstErrorKind::RequirSemicolon, pos)
     }
+
+    pub fn require_commma(pos: usize) -> Self {
+        Self::new(AstErrorKind::RequireComma, pos)
+    }
 }
 
 impl fmt::Display for AstError {
@@ -51,6 +56,7 @@ impl fmt::Display for AstError {
             UnclosedParenth => write!(f, "Unclosed"),
             NotPatternMatching => write!(f, "Not Pattern"),
             RequirSemicolon => write!(f, "Require Semicolon"),
+            RequireComma => write!(f, "Require Comma"),
             EoF => write!(f, "EoF in imcomplement position"),
         }
     }
@@ -82,6 +88,10 @@ pub enum Ast {
     Num(i32),
     Ident(String, usize),
     Func(String),
+    CallFuncNode {
+        func_name: String,
+        hs: Box<Vec<Ast>>,
+    },
     ReturnNode {
         node_kind: OneNodeKind,
         hs: Box<Ast>,
@@ -218,6 +228,13 @@ impl Ast {
         }
     }
 
+    fn call_func_node(func_name: String, hs: Vec<Ast>) -> Self {
+        Ast::CallFuncNode {
+            func_name,
+            hs: Box::new(hs),
+        }
+    }
+
     fn for_node(for_num: usize, initilal: Option<Ast>, condtion: Option<Ast>, change: Option<Ast>, stmt: Ast) -> Self {
         Ast::ForNode {
             for_num,
@@ -266,7 +283,8 @@ impl Ast {
     // add           = mul ("+" mul | "-" mul) *
     // mul          = unary ("*" unary | "/" unary)*
     // unary        = ("+" | "-")? primary
-    // primary      = num | ident ("(" ")")? | "(" expr ")"
+    // primary      = num | ident ( "(" (unary ",")* unary? ")" )? | "(" expr ")"
+    // 本当はunaryのところは符号付数字であるが、これでも構文解析はできるためこれで行く
     pub fn program<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<(Vec<Ast>, usize), AstError>
     where
         Tokens: Iterator<Item = Token>,
@@ -563,9 +581,9 @@ impl Ast {
                 }
             },
             _ => {
-                let expr = Ast::expr(tokens, variable_list);
+                let expr = Ast::expr(tokens, variable_list)?;
                 match tokens.next().unwrap() {
-                    match_token!(TokenKind::SemiColon,_pos) => Ok(expr?),
+                    match_token!(TokenKind::SemiColon,_pos) => Ok(expr),
                     match_token_nothing!(pos) => Err(AstError::require_semicolon(pos)),
                 }
             }
@@ -781,7 +799,24 @@ impl Ast {
                                         tokens.next();
                                         Ok(Ast::Func(str))
                                     }
-                                    _ => Err(AstError::unclosed_parenth(pos))
+                                    _ => {
+                                        let mut argument_list = Vec::new();
+                                        loop {
+                                            let unary = Ast::unary(tokens, variable_list)?;
+                                            argument_list.push(unary);
+                                            match tokens.next().unwrap() {
+                                                match_token!(TokenKind::Comma, pos) => {
+                                                    match tokens.peek().unwrap() {
+                                                        match_token!(TokenKind::RParen, _pos) => return Err(AstError::not_pattern_matching(pos)),
+                                                        _ => continue,
+                                                    }
+                                                },
+                                                match_token!(TokenKind::RParen, _pos) => break,
+                                                _ => return Err(AstError::require_commma(pos)),
+                                            }
+                                        }
+                                        Ok(Ast::call_func_node(str, argument_list))
+                                    },
                                 }
                             }
                             _ => unreachable!(),

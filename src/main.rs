@@ -32,7 +32,7 @@ fn main() {
             process::exit(1);
         }
     };
-    // println!("{:?}", asts);
+    println!("{:?}", asts);
     let variable_num = asts.1;
     println!(".intel_syntax noprefix");
     println!(".global main");
@@ -51,11 +51,7 @@ fn main() {
                 process::exit(1);
             }
         }
-        // forではstmtが複数回実行されるため
-        // 繰り返させ回数分結果がstackにつまれ最後のstmtの結果のみmainにてpop raxされる
-
-        // 最終的な値がstackに残っているため
-        // println!("  pop rax");
+        // nodeのほうでstmtの際にpush raxをする
     }
 
     // エピローグ

@@ -239,6 +239,19 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
         Ast::Func(ident) => {
             println!("  call {}", ident);
             Ok(())
+        },
+        Ast::CallFuncNode {
+            func_name,
+            hs: mut valiable_list,
+        } => {
+            loop {
+                match (*valiable_list).pop() {
+                    Some(num) => gen(num)?,
+                    None => break,
+                }
+            }
+            println!("  call {}", func_name);
+            Ok(())
         }
     }
 }
