@@ -242,32 +242,20 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
         },
         Ast::CallFuncNode {
             func_name,
-            hs: mut variable_list,
+            hs,
         } => {
-            if let Some(num) = variable_list.pop() {
+            for (i, num) in (*hs).into_iter().enumerate() {
                 gen(num)?;
-                println!("  pop edi");
-            };
-            if let Some(num) = variable_list.pop() {
-                gen(num)?;
-                println!("  pop esi");
-            };
-            if let Some(num) = variable_list.pop() {
-                gen(num)?;
-                println!("  pop edx");
-            };
-            if let Some(num) = variable_list.pop() {
-                gen(num)?;
-                println!("  pop ecx");
-            };
-            if let Some(num) = variable_list.pop() {
-                gen(num)?;
-                println!("  pop r8d");
-            };
-            if let Some(num) = variable_list.pop() {
-                gen(num)?;
-                println!("  pop r9d");
-            };
+                match i {
+                    0 => println!("  pop rdi"),
+                    1 => println!("  pop rsi"),
+                    2 => println!("  pop rdx"),
+                    3 => println!("  pop rcx"),
+                    4 => println!("  pop r8"),
+                    5 => println!("  pop r9"),
+                    _ => unreachable!(),
+                }
+            }
             println!("  call {}", func_name);
             Ok(())
         }
