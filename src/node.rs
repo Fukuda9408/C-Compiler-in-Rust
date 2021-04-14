@@ -102,6 +102,12 @@ pub enum Ast {
     BlockNode {
         hs: Box<Vec<Ast>>,
     },
+    AddrNode {
+        hs: Box<Ast>,
+    },
+    DerefNode {
+        hs: Box<Ast>,
+    },
     Node {
         node_kind: NodeKind,
         lhs: Box<Ast>,
@@ -136,16 +142,6 @@ pub enum Ast {
         func_name: String,
         stmt_block: Box<Ast>,
     }
-}
-
-macro_rules! match_token_err {
-    ($token_kind:path, $pos:ident, $line_num:ident) => {
-        Token {
-            val: $token_kind,
-            pos: $pos,
-            line_num: $line_num
-        }
-    };
 }
 
 macro_rules! match_token_ok {
@@ -248,6 +244,18 @@ impl Ast {
         }
     }
 
+    fn addr_node(hs: Ast) -> Self {
+        Ast::AddrNode {
+            hs: Box::new(hs)
+        }
+    }
+
+    fn deref_node(hs: Ast) -> Self {
+        Ast::DerefNode {
+            hs: Box::new(hs)
+        }
+    }
+
     fn call_func_node(func_name: String, hs: Vec<Ast>) -> Self {
         Ast::CallFuncNode {
             func_name,
@@ -312,7 +320,7 @@ impl Ast {
     // relationl    = add ("<" add | ">" add | "<=" add | ">=" add)*
     // add           = mul ("+" mul | "-" mul) *
     // mul          = unary ("*" unary | "/" unary)*
-    // unary        = ("+" | "-")? primary
+    // unary        = "+"? primary | "-"? primary | "*" primary | "&" primary
     // primary      = num | ident ( "(" (unary ",")* unary? ")" )? | "(" expr ")"
     // 本当はunaryのところは符号付数字であるが、これでも構文解析はできるためこれで行く
     pub fn program<Tokens>(tokens: &mut Peekable<Tokens>) -> Result<Vec<Ast>, AstError>
@@ -436,7 +444,7 @@ impl Ast {
                             match_token_ok!(TokenKind::LParen) => {
                                 let expr = Ast::expr(tokens, variable_list)?;
                                 match tokens.next().unwrap() {
-                                    match_token_err!(TokenKind::RParen, pos, line_num) => {
+                                    match_token_ok!(TokenKind::RParen) => {
                                         let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                         match tokens.peek().unwrap() {
                                             match_token_ok!(TokenKind::Else) => {
@@ -462,19 +470,19 @@ impl Ast {
             },
             match_token_ok!(TokenKind::While) => {
                 match tokens.next().unwrap() {
-                    match_token_err!(TokenKind::While,pos, line_num) => {
+                    match_token_ok!(TokenKind::While) => {
                         match tokens.next().unwrap() {
-                            match_token_err!(TokenKind::LParen,pos, line_num) => {
+                            match_token_ok!(TokenKind::LParen) => {
                                 let expr = Ast::expr(tokens, variable_list)?;
                                 match tokens.next().unwrap() {
                                     match_token_ok!(TokenKind::RParen) => {
                                         let stmt = Ast::stmt(tokens, variable_list, control_val)?;
                                         Ok(Ast::while_node(control_val.val_while(), expr, stmt))
                                     },
-                                    _ => Err(AstError::unclosed_parenth(pos, line_num)),
+                                    match_token_nothing!(pos, line_num) => Err(AstError::unclosed_parenth(pos, line_num)),
                                 }
                             },
-                            _ => Err(AstError::require_left_parenth(pos, line_num)),
+                            match_token_nothing!(pos, line_num) => Err(AstError::require_left_parenth(pos, line_num)),
                         }
                     },
                     _ => unreachable!(),
@@ -894,6 +902,19 @@ impl Ast {
                     //   ("+" | "-")? primary
                     //                      ^
                         Ok(Ast::node(NodeKind::Sub, l_ast, r_ast))
+                    },
+                    _ => unreachable!(),
+                }
+            },
+            TokenKind::Asterisk | TokenKind::Ampersand => {
+                match tokens.next().unwrap() {
+                    match_token_ok!(TokenKind::Asterisk) => {
+                        let hs = Ast::primary(tokens, variable_list)?;
+                        Ok(Ast::addr_node(hs))
+                    },
+                    match_token_ok!(TokenKind::Ampersand) => {
+                        let hs = Ast::primary(tokens, variable_list)?;
+                        Ok(Ast::deref_node(hs))
                     },
                     _ => unreachable!(),
                 }

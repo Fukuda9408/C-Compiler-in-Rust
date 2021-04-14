@@ -24,6 +24,7 @@ pub enum TokenKind {
     Substitution,   // =
     SemiColon,  // ;
     Comma,      // ,
+    Ampersand,  // &
     Return,
     If,
     Else,
@@ -121,6 +122,7 @@ impl Token {
                 b'{' => tokenize_except_num!(TokenKind::LCuryBra),
                 b'}' => tokenize_except_num!(TokenKind::RCuryBra),
                 b'*' => tokenize_except_num!(TokenKind::Asterisk),
+                b'&' => tokenize_except_num!(TokenKind::Ampersand),
                 b'/' => tokenize_except_num!(TokenKind::Slash),
                 b'<' => {
                     let start_pos = pos;
@@ -231,7 +233,7 @@ impl Token {
 
     fn tokenize_ident(input: &[u8], mut pos: usize) -> (String, usize) {
         let start = pos;
-        while pos < input.len() && !b" \t\n+-*/()><=!;,".contains(&input[pos]) {
+        while pos < input.len() && !b" \t\n+-*/()><=!;,&".contains(&input[pos]) {
             pos += 1;
         }
         let ident = String::from_utf8(input[start..pos].to_vec())

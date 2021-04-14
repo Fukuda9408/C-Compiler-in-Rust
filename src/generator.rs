@@ -89,6 +89,22 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             }
             Ok(())
         }
+        Ast::AddrNode {
+            hs,
+        } => {
+            gen_left_value(*hs)?;       // 変数のアドレスがstackにpush
+            Ok(())
+        }
+        // *4はアドレス4から値を読みだすことになるので注意
+        Ast::DerefNode {
+            hs
+        } => {
+            gen(*hs)?;                  // 変数の値(addr)がstackにpush ->
+            println!("  pop rax");
+            println!("  mov rax, [rax]");
+            println!("  push rax");
+            Ok(())
+        }
         Ast::Node {
             node_kind,
             lhs,

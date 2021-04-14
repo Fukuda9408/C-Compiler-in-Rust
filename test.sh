@@ -61,4 +61,6 @@ assert "./test/test36.txt" 10
 assert "./test/test37.txt" 48
 
 assert "./test/test38.txt" 3
+
+assert "./test/test39.txt" 10
 echo OK

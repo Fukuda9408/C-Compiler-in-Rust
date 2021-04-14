@@ -1,0 +1,6 @@
+main() {
+    a=10;
+    b = &a;
+    c = *a;
+    return c;
+}
