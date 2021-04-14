@@ -16,54 +16,49 @@ assert() {
     fi
 }
 
-assert "main(){ 1 + 2;}" 3
-assert "main(){ 1 + 3 * 4 + 5;}" 18
-assert "main(){ 1 + +2;}" 3
-assert "main(){1 - -3 ;}" 4
-assert "main(){1 - -(4 + 5 * 2);}" 15
-assert "main(){1 + 5 > 5;}" 1
-assert "main(){1 + 5 > 7;}" 0
-assert "main(){1 + 5 < 5;}" 0
-assert "main(){1 + 5 < 7;}" 1
-assert "main(){1 + 5 >= 6;}" 1
-assert "main(){1 + 5 >= 7;}" 0
-assert "main(){1 + 5 <= 5;}" 0
-assert "main(){1 + 5 <= 6;}" 1
+assert "./test/test1.txt" 3
+assert "./test/test2.txt" 18
+assert "./test/test3.txt" 3
+assert "./test/test4.txt" 4
+assert "./test/test5.txt" 15
+assert "./test/test6.txt" 1
+assert "./test/test7.txt" 0
+assert "./test/test8.txt" 0
+assert "./test/test9.txt" 1
+assert "./test/test10.txt" 1
+assert "./test/test11.txt" 0
+assert "./test/test12.txt" 0
+assert "./test/test13.txt" 1
 
-assert "main(){1 + 5 == 6;}" 1
-assert "main(){1 + 5 == 5;}" 0
-assert "main(){1 + 5 != 6;}" 0
-assert "main(){1 + 5 != 5;}" 1
+assert "./test/test14.txt" 1
+assert "./test/test15.txt" 0
+assert "./test/test16.txt" 0
+assert "./test/test17.txt" 1
 
-assert "main(){5 > 6 == 5 > 6;}" 1
-assert "main(){5 > 6 == 5 < 6;}" 0
-assert "main(){5 > 6 != 5 > 6;}" 0
-assert "main(){5 > 6 != 5 < 6;}" 1
+assert "./test/test18.txt" 1
+assert "./test/test19.txt" 0
+assert "./test/test20.txt" 0
+assert "./test/test21.txt" 1
 
-assert "main(){a =1;b =1; a = a+b;return a;}" 2
-assert "main(){ a =3; b = a; c = b + a;return c;}" 6
+assert "./test/test22.txt" 2
+assert "./test/test23.txt" 6
 
-assert "main(){a=1; b = 2; return a + b;}" 3
-assert "main(){a=1; if(a==1) b = 0;return b;}" 0
-assert "main(){a = 1; if(a == 0) b = 0; else b = 1;return b;}" 1
-assert "main(){a = 1; while(a < 4) a = a + 1; return a;}" 4
-assert "main(){b = 0; for(a = 0; a < 4; a = a + 1) b = b + a;return b;}" 6
-assert "main(){a=0;b=0;c=0;for(;a<4;a = a+1) for(;b<4;b = b+1) c = a+b;return c;}" 3
-# 二個目のforループでは初期化処理が働かないため、b=3に一個目のループで変化した後は、aの値を変えようと二個目のループの中身は処理されないため図ずっとc=3
-assert "main(){c=0;for(a=0;a<4;a = a+1) for(b=0;b<4;b = b+1) c = a+b;return c;}" 6
+assert "./test/test24.txt" 3
+assert "./test/test25.txt" 0
+assert "./test/test26.txt" 1
+assert "./test/test27.txt" 4
+assert "./test/test28.txt" 6
+assert "./test/test29.txt" 3
+# 二個目のfo./test/test2.txtrループでは初期化処理が働かないため、b=3に一個目のループで変化した後は、aの値を変えようと二個目のループの中身は処理されないため図ずっとc=3
+assert "./test/test30.txt" 6
 
-assert "main(){a=1;c=1;if(c >0) {a=0;} return a;}" 0
-assert "main(){a=1;c=1;if(c >2) {a=0;} else {a = 2;} return a;}" 2
-assert "main(){a=1;c=1;if(c >2) {a=0;} return a;}" 1
-assert "main(){a=1;c=1;if(c >2) {a=0;} else {a = 2;} return a;}" 2
-assert "main(){a=0;b=0;while(a<4){b = b + a; a = a + 1;}return b;}" 6
-assert "main(){b=0;for(a=0; a < 5; a = a + 1) {b = b + a;}return b;}" 10
-assert "main(){sum=0;for(a=0; a < 4; a = a + 1) {
-            for(b=0;b < 4; b = b + 1) {
-                sum = sum + a + b;
-            }
-        }
-        return sum;}" 48
+assert "./test/test31.txt" 0
+assert "./test/test32.txt" 2
+assert "./test/test33.txt" 1
+assert "./test/test34.txt" 2
+assert "./test/test35.txt" 6
+assert "./test/test36.txt" 10
+assert "./test/test37.txt" 48
 
-assert "main() {a=1;b=2;c=foo(a,b);return c;} foo(a, b){c = a + b; return c;}" 3
+assert "./test/test38.txt" 3
 echo OK
