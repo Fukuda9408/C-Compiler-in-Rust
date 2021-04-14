@@ -1,7 +1,7 @@
 use std::env;
 use std::process;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{BufRead, BufReader};
 
 mod token;
 mod node;
@@ -9,7 +9,7 @@ mod generator;
 
 fn main() {
     use token::{Token, TokenKind};
-    // use node::Ast;
+    use node::Ast;
 
     let args: Vec<String> = env::args().collect();
 
@@ -43,25 +43,25 @@ fn main() {
     }
     tokens.push(Token::new(TokenKind::EOF, token::Location(last_line_len, last_line_len), last_line_num));
     println!("{:?}", tokens);
-    // let mut token = tokens.into_iter().peekable();
-    // let asts = match Ast::program(&mut token) {
-    //     Ok(ast) => ast,
-    //     Err(e) => {
-    //         eprintln!("{}", e);
-    //         process::exit(1);
-    //     }
-    // };
-    // println!(".intel_syntax noprefix");
-    // println!(".global main");
+    let mut token = tokens.into_iter().peekable();
+    let asts = match Ast::program(&mut token) {
+        Ok(ast) => ast,
+        Err(e) => {
+            println!("{}", program[e.line_num]);
+            eprintln!("{}", e);
+            process::exit(1);
+        }
+    };
+    println!(".intel_syntax noprefix");
+    println!(".global main");
 
-    // for ast in asts.into_iter() {
-    //     match generator::gen(ast) {
-    //         Ok(_) => println!(""),
-    //         Err(e) => {
-    //             eprintln!("{}", e);
-    //             process::exit(1);
-    //         }
-    //     }
-    // }
-    // Ok(())
+    for ast in asts.into_iter() {
+        match generator::gen(ast) {
+            Ok(_) => println!(""),
+            Err(e) => {
+                eprintln!("{}", e);
+                process::exit(1);
+            }
+        }
+    }
 }

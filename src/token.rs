@@ -69,7 +69,7 @@ impl fmt::Display for TokenizeError {
 
 impl error::Error for TokenizeError {}
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct Location(pub usize, pub usize);
 
 #[derive(Debug)]
