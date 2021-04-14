@@ -910,11 +910,11 @@ impl Ast {
                 match tokens.next().unwrap() {
                     match_token_ok!(TokenKind::Asterisk) => {
                         let hs = Ast::primary(tokens, variable_list)?;
-                        Ok(Ast::addr_node(hs))
+                        Ok(Ast::deref_node(hs))
                     },
                     match_token_ok!(TokenKind::Ampersand) => {
                         let hs = Ast::primary(tokens, variable_list)?;
-                        Ok(Ast::deref_node(hs))
+                        Ok(Ast::addr_node(hs))
                     },
                     _ => unreachable!(),
                 }

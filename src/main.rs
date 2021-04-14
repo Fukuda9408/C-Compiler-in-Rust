@@ -42,7 +42,7 @@ fn main() {
         }
     }
     tokens.push(Token::new(TokenKind::EOF, token::Location(last_line_len, last_line_len), last_line_num));
-    println!("{:?}", tokens);
+    // println!("{:?}", tokens);
     let mut token = tokens.into_iter().peekable();
     let asts = match Ast::program(&mut token) {
         Ok(ast) => ast,
@@ -52,6 +52,7 @@ fn main() {
             process::exit(1);
         }
     };
+    // println!("{:?}", asts);
     println!(".intel_syntax noprefix");
     println!(".global main");
 
