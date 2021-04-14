@@ -1,6 +1,6 @@
 main() {
     a=10;
     b = &a;
-    c = *a;
+    c = *b;
     return c;
 }
