@@ -5,9 +5,10 @@ mod token;
 mod node;
 mod generator;
 
+use token::Token;
+use node::Ast;
+
 fn main() {
-    use token::Token;
-    use node::Ast;
     let args: Vec<String> = env::args().collect();
 
     if args.len() != 2 {
