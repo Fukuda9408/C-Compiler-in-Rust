@@ -67,9 +67,8 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             // 変数の値がstackに積まれる
             println!("# Local Variable Read finish");
             Ok(())
-        }
+        },
         Ast::ReturnNode {
-            node_kind: _,
             hs,
         } => {
             println!("# Return start");
@@ -83,12 +82,27 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             Ok(())
         },
         Ast::BlockNode {
-            node_kind: _,
             hs,
         } => {
             for stmt in (*hs).into_iter() {
                 gen(stmt)?;
             }
+            Ok(())
+        }
+        Ast::AddrNode {
+            hs,
+        } => {
+            gen_left_value(*hs)?;       // 変数のアドレスがstackにpush
+            Ok(())
+        }
+        // *4はアドレス4から値を読みだすことになるので注意
+        Ast::DerefNode {
+            hs
+        } => {
+            gen(*hs)?;                  // 変数の値(addr)がstackにpush ->
+            println!("  pop rax");
+            println!("  mov rax, [rax]");
+            println!("  push rax");
             Ok(())
         }
         Ast::Node {
@@ -107,7 +121,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
                     // rdiに値
                     println!("  mov [rax], rdi");
                     // 右辺値がstackに積まれる
-                    println!("  push rdi");
+                    // println!("  push rdi");
                     println!("# Substitution finish");
                 },
                 _ => {
@@ -217,7 +231,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             println!("# For start");
             if let Some(expr_first) = *initial {
                 gen(expr_first)?;
-                println!("  pop rax");      // 結果はraxに格納されている
+                // println!("  pop rax");      // 結果はraxに格納されている
             };
             println!(".Lbegin{}:", for_num);
             if let Some(expr_second) = *condition {
@@ -229,7 +243,7 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
             gen(*stmt)?;
             if let Some(expr_third) = *change{
                 gen(expr_third)?;
-                println!("  pop rax");      // 結果はraxに格納されている
+                // println!("  pop rax");      // 結果はraxに格納されている
             }
             println!("  jmp .Lbegin{}", for_num);
             println!(".Lend{}:", for_num);
@@ -239,6 +253,75 @@ pub fn gen(ast: Ast) -> Result<(), GeneratorError> {
         Ast::Func(ident) => {
             println!("  call {}", ident);
             Ok(())
+        },
+        Ast::CallFuncNode {
+            func_name,
+            hs,
+        } => {
+            for (i, num) in (*hs).into_iter().enumerate() {
+                gen(num)?;
+                match i {
+                    0 => println!("  pop rdi"),
+                    1 => println!("  pop rsi"),
+                    2 => println!("  pop rdx"),
+                    3 => println!("  pop rcx"),
+                    4 => println!("  pop r8"),
+                    5 => println!("  pop r9"),
+                    _ => unreachable!(),
+                }
+            }
+            println!("  call {}", func_name);
+            println!(" push rax");      // 関数の結果を代入する際に結果がstackに積まれている前提で行われるため
+            Ok(())
         }
+        Ast::FuncNode {
+            argument_num,
+            local_variable_num,
+            func_name,
+            stmt_block,
+        } => {
+            println!("{}:", func_name);
+            // プロローグ
+            // 変数の個数はlocal_variable_numに格
+            println!("  push rbp");
+            println!("  mov rbp, rsp");
+            // ローカル変数の定義
+            println!("  sub rsp, {}", local_variable_num * 8);
+            // -------------
+            //    r9
+            // -------------
+            //    r8
+            // -------------
+            //    rcx
+            // -------------
+            //    rdx
+            // -------------
+            //    rsi
+            // -------------
+            //    rdi
+            // -------------   <-    今のrbp
+            //    前のrbp
+            // -------------
+            // return addrss
+            //
+            for i in 0..argument_num {
+                match i {
+                    0 => println!("  mov [rbp - 0x08], rdi"),
+                    1 => println!("  mov [rbp - 0x10], rsi"),
+                    2 => println!("  mov [rbp - 0x18], rdx"),
+                    3 => println!("  mov [rbp - 0x20], rcx"),
+                    4 => println!("  mov [rbp - 0x28], r8"),
+                    5 => println!("  mov [rbp - 0x30], r9"),
+                    _ => unreachable!(),
+                }
+            }
+            gen(*stmt_block)?;
+            // エピローグ
+            // 最後の式の値がraxに格納されており、それが返り値
+            println!("  mov rsp, rbp");
+            println!("  pop rbp");
+            println!("  ret");
+            Ok(())
+        },
     }
 }

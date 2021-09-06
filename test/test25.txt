@@ -1,0 +1,1 @@
+main(){a=1; if(a==1) b = 0;return b;}
