@@ -7,7 +7,7 @@ mod token;
 mod node;
 mod generator;
 
-use token::Token;
+use token::{Token, TokenKind};
 use node::Ast;
 
 fn main() {
