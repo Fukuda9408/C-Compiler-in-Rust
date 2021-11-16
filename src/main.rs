@@ -25,11 +25,11 @@ fn main() {
     let mut last_line_len = 0;
     let mut last_line_num = 0;
     for (line_num, result) in BufReader::new(File::open(args[1].clone()).unwrap()).lines().enumerate() {
-        let l = result.unwrap();
+        let line = result.unwrap();
         // 後でprogramを参照するために1行ずつStringをpush
-        program.push(l.clone());
+        program.push(line.clone());
 
-        let input = l.as_bytes();
+        let input = line.as_bytes();
         // 最後にEOFをtokensにpushするために必要な情報
         last_line_len = input.len();
         last_line_num = line_num;

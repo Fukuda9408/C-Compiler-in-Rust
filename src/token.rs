@@ -5,16 +5,16 @@ const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012
 
 #[derive(Debug, PartialEq)]
 pub enum TokenKind {
-    Num(i32),
+    Num(u64),
     Ident(String),
-    Plus,
-    Minus,
-    LParen,
-    RParen,
-    LCuryBra,
-    RCuryBra,
-    Asterisk,
-    Slash,
+    Plus,       // +
+    Minus,      // -
+    LParen,     // (
+    RParen,     // )
+    LCuryBra,   // {
+    RCuryBra,   // }
+    Asterisk,   // *
+    Slash,      // /
     Large,      // >
     Small,      // <
     EqualSmall, // <=
@@ -25,6 +25,7 @@ pub enum TokenKind {
     SemiColon,  // ;
     Comma,      // ,
     Ampersand,  // &
+    Exclamation,    // !
     Return,
     If,
     Else,
@@ -32,20 +33,20 @@ pub enum TokenKind {
     For,
     EOF,
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum TokenizeErrorKind {
-    InvalidChar(char),
+    NotNumber,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct TokenizeError {
     val: TokenizeErrorKind,
-    pos: usize,
+    pos: Location,
     str: String,
 }
 
 impl TokenizeError {
-    fn new(val: TokenizeErrorKind, pos: usize, str: String) -> Self {
+    fn new(val: TokenizeErrorKind, pos: Location, str: String) -> Self {
         Self {
             val,
             pos,
@@ -53,24 +54,26 @@ impl TokenizeError {
         }
     }
 
-    pub fn invalid_char(c: char, pos: usize, str: String) -> Self {
-        Self::new(TokenizeErrorKind::InvalidChar(c), pos, str)
+    pub fn not_number(pos: Location, original_code: String) -> Self {
+        Self::new(TokenizeErrorKind::NotNumber, pos, original_code)
     }
 }
 
 impl fmt::Display for TokenizeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use TokenizeErrorKind::*;
-        let space = " ".repeat(self.pos);
+        let space = " ".repeat(self.pos.0);
+        let hat = "^".repeat(self.pos.1 - self.pos.0 + 1);
         match self.val {
-            InvalidChar(c) => write!(f, "{}\n{}^ Invalid char '{}'", self.str, space, c),
+            NotNumber => write!(f, "{}\n{}{} NotNumber", self.str, space, hat),
         }
     }
 }
 
 impl error::Error for TokenizeError {}
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq
+)]
 pub struct Location(pub usize, pub usize);
 
 #[derive(Debug)]
@@ -93,7 +96,7 @@ impl Token {
         let mut result: Vec<Token> = Vec::new();
         let mut pos = 0;
 
-        macro_rules! tokenize_except_num {
+        macro_rules! tokenize_expect_num {
             ($token_kind:expr) => {
                 {
                     let token = Token::new($token_kind, Location(pos, pos), line_num);
@@ -115,20 +118,20 @@ impl Token {
         while pos < str.len() {
             match str[pos] {
                 b' ' | b'\t' | b'\n' => pos += 1,
-                b'+' => tokenize_except_num!(TokenKind::Plus),
-                b'-' => tokenize_except_num!(TokenKind::Minus),
-                b')' => tokenize_except_num!(TokenKind::RParen),
-                b'(' => tokenize_except_num!(TokenKind::LParen),
-                b'{' => tokenize_except_num!(TokenKind::LCuryBra),
-                b'}' => tokenize_except_num!(TokenKind::RCuryBra),
-                b'*' => tokenize_except_num!(TokenKind::Asterisk),
-                b'&' => tokenize_except_num!(TokenKind::Ampersand),
-                b'/' => tokenize_except_num!(TokenKind::Slash),
+                b'+' => tokenize_expect_num!(TokenKind::Plus),
+                b'-' => tokenize_expect_num!(TokenKind::Minus),
+                b')' => tokenize_expect_num!(TokenKind::RParen),
+                b'(' => tokenize_expect_num!(TokenKind::LParen),
+                b'{' => tokenize_expect_num!(TokenKind::LCuryBra),
+                b'}' => tokenize_expect_num!(TokenKind::RCuryBra),
+                b'*' => tokenize_expect_num!(TokenKind::Asterisk),
+                b'&' => tokenize_expect_num!(TokenKind::Ampersand),
+                b'/' => tokenize_expect_num!(TokenKind::Slash),
                 b'<' => {
                     let start_pos = pos;
                     pos += 1;
                     match str[pos] {
-                        b'=' => tokenize_except_num!(TokenKind::EqualSmall),
+                        b'=' => tokenize_expect_num!(TokenKind::EqualSmall),
                         _ => result.push(Token::new(TokenKind::Small, Location(start_pos, pos), line_num)),
                     }
                 },
@@ -136,7 +139,7 @@ impl Token {
                     let start_pos = pos;
                     pos += 1;
                     match str[pos] {
-                        b'=' => tokenize_except_num!(TokenKind::EqualLarge),
+                        b'=' => tokenize_expect_num!(TokenKind::EqualLarge),
                         _ => result.push(Token::new(TokenKind::Large, Location(start_pos, pos), line_num)),
                     }
                 },
@@ -144,19 +147,20 @@ impl Token {
                     let start_pos = pos;
                     pos += 1;
                     match str[pos] {
-                        b'=' => tokenize_except_num!(TokenKind::Equal),
+                        b'=' => tokenize_expect_num!(TokenKind::Equal),
                         _ => result.push(Token::new(TokenKind::Substitution, Location(start_pos, pos), line_num)),
                     }
                 },
                 b'!' => {
+                    let start_pos = pos;
                     pos += 1;
                     match str[pos] {
-                        b'=' => tokenize_except_num!(TokenKind::NotEqual),
-                        b => return Err(TokenizeError::invalid_char(b as char, pos, String::from_utf8(str.to_vec()).unwrap())),
+                        b'=' => tokenize_expect_num!(TokenKind::NotEqual),
+                        _ => result.push(Token::new(TokenKind::Exclamation, Location(start_pos, pos), line_num))
                     }
                 },
-                b';' => tokenize_except_num!(TokenKind::SemiColon),
-                b',' => tokenize_except_num!(TokenKind::Comma),
+                b';' => tokenize_expect_num!(TokenKind::SemiColon),
+                b',' => tokenize_expect_num!(TokenKind::Comma),
                 b'0'..=b'9' => {
                     let (num, new_pos) = Token::tokenize_number(str, pos)?;
                     let token = Token::new(TokenKind::Num(num), Location(pos, new_pos - 1), line_num);
@@ -216,26 +220,26 @@ impl Token {
         Ok(result)
     }
 
-    fn tokenize_number(input: &[u8], mut pos: usize) -> Result<(i32, usize) , TokenizeError> {
+    fn tokenize_number(input: &[u8], mut pos: usize) -> Result<(u64, usize) , TokenizeError> {
         let start = pos;
-        while pos < input.len() {
-            match input[pos] {
-                b'0'..=b'9' => pos += 1,
-                _ => break,
-            }
+        while pos < input.len() && !b" \t\n+-(){}*/><=!;.&".contains(&input[pos]) {
+            pos += 1;
         }
-        let num = String::from_utf8(input[start..pos].to_vec())
+        let num_str = String::from_utf8(input[start..pos].to_vec())
                     .unwrap()
-                    .parse()
-                    .unwrap();
-        Ok((num, pos))
+                    .parse::<u64>();
+        match num_str {
+            Ok(num) => Ok((num, pos)),
+            Err(_) => Err(TokenizeError::not_number(Location(start, pos -1), input[start..pos].iter().map(|&c| c as char).collect::<String>())),
+        }
     }
 
     fn tokenize_ident(input: &[u8], mut pos: usize) -> (String, usize) {
         let start = pos;
-        while pos < input.len() && !b" \t\n+-*/()><=!;,&".contains(&input[pos]) {
+        while pos < input.len() && !b" \t\n+-(){}*/><=!;.&".contains(&input[pos]) {
             pos += 1;
         }
+        // Used in utf-8??
         let ident = String::from_utf8(input[start..pos].to_vec())
                     .unwrap()
                     .parse()
@@ -259,5 +263,31 @@ impl Token {
             }
         }
         (true, pos)
+    }
+}
+
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tokenize_number() {
+        let input = &"098".as_bytes();
+        assert_eq!(Token::tokenize_number(input, 0).unwrap(), (98, 3));
+
+        let input = &"012notnum".as_bytes();
+        assert_eq!(Token::tokenize_number(input, 0), Err(TokenizeError::not_number(Location(0, 8), String::from("012notnum"))));
+
+        let input = &"012+abc".as_bytes();
+        assert_eq!(Token::tokenize_number(input, 0), Ok((12, 3)));
+    }
+
+    #[test]
+    fn test_tokenize_error_diplay() {
+        let tokenize_error = TokenizeError::not_number(Location(4, 5), String::from("a + 0a"));
+        assert_eq!(format!("{:#}", tokenize_error), 
+            String::from("a + 0a\n    ^^ NotNumber"))
     }
 }

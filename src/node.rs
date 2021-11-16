@@ -89,7 +89,7 @@ pub enum NodeKind {
 
 #[derive(Debug)]
 pub enum Ast {
-    Num(i32),
+    Num(u64),
     Ident(String, usize),
     Func(String),
     CallFuncNode {
@@ -219,7 +219,7 @@ impl ControlVal {
 }
 
 impl Ast {
-    fn num(num: i32) -> Self {
+    fn num(num: u64) -> Self {
         Ast::Num(num)
     }
 
