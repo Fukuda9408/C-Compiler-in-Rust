@@ -20,40 +20,31 @@ fn main() {
     }
 
     let mut tokens: Vec<Token> = Vec::new();
-    let mut program = Vec::new();
 
-    let mut last_line_len = 0;
-    let mut last_line_num = 0;
-    for (line_num, result) in BufReader::new(File::open(args[1].clone()).unwrap()).lines().enumerate() {
-        let line = result.unwrap();
-        // 後でprogramを参照するために1行ずつStringをpush
-        program.push(line.clone());
+    for (line_num, code) in BufReader::new(File::open(&args[1]).unwrap()).lines().enumerate() {
+        let input  = code.unwrap();
 
-        let input = line.as_bytes();
-        // 最後にEOFをtokensにpushするために必要な情報
-        last_line_len = input.len();
-        last_line_num = line_num;
-
-        match Token::tokenize(input, line_num) {
+        match Token::tokenize(&input.as_bytes(), line_num) {
             Ok(mut tk) => tokens.append(&mut tk),
             Err(e) => {
-            eprintln!("{}", e);
-            process::exit(1);
+                eprintln!("{}", e);
+                process::exit(1);
             }
         }
     }
-    tokens.push(Token::new(TokenKind::EOF, token::Location(last_line_len, last_line_len), last_line_num));
-    // println!("{:?}", tokens);
+    let eof_pos = tokens.last().unwrap().pos.1 + 1;
+    let eof_line_num = tokens.last().unwrap().line_num;
+    tokens.push(Token::new(TokenKind::EOF, token::Location(eof_pos, eof_pos), eof_line_num));
+
     let mut token = tokens.into_iter().peekable();
     let asts = match Ast::program(&mut token) {
         Ok(ast) => ast,
         Err(e) => {
-            println!("{}", program[e.line_num]);
+            println!("{}", e);
             eprintln!("{}", e);
             process::exit(1);
         }
     };
-    // println!("{:?}", asts);
     println!(".intel_syntax noprefix");
     println!(".global main");
 
