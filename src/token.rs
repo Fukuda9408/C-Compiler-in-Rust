@@ -1,8 +1,6 @@
 use std::error;
 use std::fmt;
 
-const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
-
 #[derive(Debug, PartialEq)]
 pub enum TokenKind {
     Num(u64),
@@ -76,7 +74,7 @@ impl error::Error for TokenizeError {}
 )]
 pub struct Location(pub usize, pub usize);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct Token {
     pub val: TokenKind,
     pub pos: Location,
@@ -96,124 +94,83 @@ impl Token {
         let mut result: Vec<Token> = Vec::new();
         let mut pos = 0;
 
-        macro_rules! tokenize_expect_num {
-            ($token_kind:expr) => {
-                {
-                    let token = Token::new($token_kind, Location(pos, pos), line_num);
-                    result.push(token);
-                    pos += 1;
-                }
-            };
-        }
-
-        macro_rules! tokenize_variable {
-            () => {
-                let (ident, new_pos) = Token::tokenize_ident(str, pos);
-                let token = Token::new(TokenKind::Ident(ident), Location(pos, new_pos), line_num);
-                result.push(token);
-                pos = new_pos;
-            };
-        }
-
         while pos < str.len() {
             match str[pos] {
                 b' ' | b'\t' | b'\n' => pos += 1,
-                b'+' => tokenize_expect_num!(TokenKind::Plus),
-                b'-' => tokenize_expect_num!(TokenKind::Minus),
-                b')' => tokenize_expect_num!(TokenKind::RParen),
-                b'(' => tokenize_expect_num!(TokenKind::LParen),
-                b'{' => tokenize_expect_num!(TokenKind::LCuryBra),
-                b'}' => tokenize_expect_num!(TokenKind::RCuryBra),
-                b'*' => tokenize_expect_num!(TokenKind::Asterisk),
-                b'&' => tokenize_expect_num!(TokenKind::Ampersand),
-                b'/' => tokenize_expect_num!(TokenKind::Slash),
+                b'+' => {result.push(Token::new(TokenKind::Plus, Location(pos, pos), line_num)); pos += 1;},
+                b'-' => {result.push(Token::new(TokenKind::Minus, Location(pos, pos), line_num)); pos += 1;},
+                b')' => {result.push(Token::new(TokenKind::RParen, Location(pos, pos), line_num)); pos += 1;},
+                b'(' => {result.push(Token::new(TokenKind::LParen, Location(pos, pos), line_num)); pos += 1;},
+                b'{' => {result.push(Token::new(TokenKind::LCuryBra, Location(pos, pos), line_num)); pos += 1;},
+                b'}' => {result.push(Token::new(TokenKind::RCuryBra, Location(pos, pos), line_num)); pos += 1;},
+                b'*' => {result.push(Token::new(TokenKind::Asterisk, Location(pos, pos), line_num)); pos += 1;},
+                b'&' => {result.push(Token::new(TokenKind::Ampersand, Location(pos, pos), line_num)); pos += 1;},
+                b'/' => {result.push(Token::new(TokenKind::Slash, Location(pos, pos), line_num)); pos += 1;},
                 b'<' => {
-                    let start_pos = pos;
+                    let start = pos;
                     pos += 1;
+                    if pos == str.len() {result.push(Token::new(TokenKind::Small, Location(start, pos - 1), line_num)); break;}
                     match str[pos] {
-                        b'=' => tokenize_expect_num!(TokenKind::EqualSmall),
-                        _ => result.push(Token::new(TokenKind::Small, Location(start_pos, pos), line_num)),
+                        b'=' => {result.push(Token::new(TokenKind::EqualSmall, Location(start, pos), line_num)); pos += 1;},
+                        _ => result.push(Token::new(TokenKind::Small, Location(start, pos), line_num)),
                     }
                 },
                 b'>' => {
-                    let start_pos = pos;
+                    let start = pos;
                     pos += 1;
+                    if pos == str.len() {result.push(Token::new(TokenKind::Large, Location(start, pos - 1), line_num)); break;}
                     match str[pos] {
-                        b'=' => tokenize_expect_num!(TokenKind::EqualLarge),
-                        _ => result.push(Token::new(TokenKind::Large, Location(start_pos, pos), line_num)),
+                        b'=' => {result.push(Token::new(TokenKind::EqualLarge, Location(start, pos), line_num)); pos += 1;},
+                        _ => result.push(Token::new(TokenKind::Large, Location(start, pos), line_num)),
                     }
                 },
                 b'=' => {
-                    let start_pos = pos;
+                    let start = pos;
                     pos += 1;
+                    if pos == str.len() {result.push(Token::new(TokenKind::Substitution, Location(start, pos - 1), line_num)); break;}
                     match str[pos] {
-                        b'=' => tokenize_expect_num!(TokenKind::Equal),
-                        _ => result.push(Token::new(TokenKind::Substitution, Location(start_pos, pos), line_num)),
+                        b'=' => {result.push(Token::new(TokenKind::Equal, Location(start, pos), line_num)); pos += 1;},
+                        _ => result.push(Token::new(TokenKind::Substitution, Location(start, pos), line_num)),
                     }
                 },
                 b'!' => {
-                    let start_pos = pos;
+                    let start = pos;
                     pos += 1;
+                    if pos == str.len() {result.push(Token::new(TokenKind::Exclamation, Location(start, pos - 1), line_num));break;}
                     match str[pos] {
-                        b'=' => tokenize_expect_num!(TokenKind::NotEqual),
-                        _ => result.push(Token::new(TokenKind::Exclamation, Location(start_pos, pos), line_num))
+                        b'=' => {result.push(Token::new(TokenKind::NotEqual, Location(start, pos), line_num)); pos += 1;},
+                        _ => result.push(Token::new(TokenKind::Exclamation, Location(start, pos), line_num))
                     }
                 },
-                b';' => tokenize_expect_num!(TokenKind::SemiColon),
-                b',' => tokenize_expect_num!(TokenKind::Comma),
+                b';' => {result.push(Token::new(TokenKind::SemiColon, Location(pos, pos), line_num)); pos += 1;},
+                b',' => {result.push(Token::new(TokenKind::Comma, Location(pos, pos), line_num)); pos += 1;},
                 b'0'..=b'9' => {
                     let (num, new_pos) = Token::tokenize_number(str, pos)?;
                     let token = Token::new(TokenKind::Num(num), Location(pos, new_pos - 1), line_num);
                     result.push(token);
                     pos = new_pos;
                 },
-                b'i' => {
-                    let (is_contains, new_pos) = Token::tokenize_str(str, pos, "if".as_bytes());
-                    if is_contains {
-                        result.push(Token::new(TokenKind::If, Location(pos, new_pos - 1), line_num));
-                        pos = new_pos;
-                    } else {
-                        tokenize_variable!();
-                    }
-                },
-                b'f' => {
-                    let (is_contains, new_pos) = Token::tokenize_str(str, pos, "for".as_bytes());
-                    if is_contains {
-                        result.push(Token::new(TokenKind::For, Location(pos, new_pos - 1), line_num));
-                        pos = new_pos;
-                    } else {
-                        tokenize_variable!();
-                    }
-                },
-                b'e' => {
-                    let (is_contains, new_pos) = Token::tokenize_str(str, pos, "else".as_bytes());
-                    if is_contains {
-                        result.push(Token::new(TokenKind::Else, Location(pos, new_pos - 1), line_num));
-                        pos = new_pos;
-                    } else {
-                        tokenize_variable!();
-                    }
-                },
-                b'r' => {
-                    let (is_contains, new_pos) = Token::tokenize_str(str, pos, "return".as_bytes());
-                    if is_contains {
-                        result.push(Token::new(TokenKind::Return, Location(pos, new_pos - 1), line_num));
-                        pos = new_pos;
-                    } else {
-                        tokenize_variable!();
-                    }
-                },
-                b'w' => {
-                    let (is_contains, new_pos) = Token::tokenize_str(str, pos, "while".as_bytes());
-                    if is_contains {
-                        result.push(Token::new(TokenKind::While, Location(pos, new_pos - 1), line_num));
-                        pos = new_pos;
-                    } else {
-                        tokenize_variable!();
-                    }
-                },
                 _ => {
-                    tokenize_variable!();
+                    let (ident, new_pos) = Token::tokenize_ident(&str, pos);
+                    match &ident[..] {
+                        "if" => {
+                            result.push(Token::new(TokenKind::If, Location(pos, new_pos - 1), line_num));
+                        },
+                        "else" => {
+                            result.push(Token::new(TokenKind::Else, Location(pos, new_pos - 1), line_num));
+                        },
+                        "while" => {
+                            result.push(Token::new(TokenKind::While, Location(pos, new_pos - 1), line_num));
+                        },
+                        "for" => {
+                            result.push(Token::new(TokenKind::For, Location(pos, new_pos - 1), line_num));
+                        },
+                        "return" => {
+                            result.push(Token::new(TokenKind::Return, Location(pos, new_pos - 1), line_num));
+                        },
+                        _ => result.push(Token::new(TokenKind::Ident(ident), Location(pos, new_pos - 1), line_num))
+                    }
+                    pos = new_pos
                 }
             }
         }
@@ -246,27 +203,7 @@ impl Token {
                     .unwrap();
         (ident, pos)
     }
-
-    fn tokenize_str(input: &[u8], mut pos: usize, search_str: &[u8]) -> (bool, usize) {
-        let mut start = 0;
-        let len = search_str.len();
-        while pos < input.len() && start < len {
-            if input[pos] != search_str[start] {
-                return (false, pos)
-            }
-            pos += 1;
-            start += 1;
-        }
-        if pos != input.len() {
-            if CHARSET.contains(&input[pos]) {
-                return (false, pos)
-            }
-        }
-        (true, pos)
-    }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -289,5 +226,34 @@ mod tests {
         let tokenize_error = TokenizeError::not_number(Location(4, 5), String::from("a + 0a"));
         assert_eq!(format!("{:#}", tokenize_error), 
             String::from("a + 0a\n    ^^ NotNumber"))
+    }
+
+    #[test]
+    fn test_tokenize_ident() {
+        let input = "abcd".as_bytes();
+        assert_eq!(Token::tokenize_ident(input, 0), ("abcd".to_string(), 4));
+
+        let input = "abcd.efg".as_bytes();
+        assert_eq!(Token::tokenize_ident(input, 0), ("abcd".to_string(), 4))
+    }
+
+    #[test]
+    fn test_tokenize() {
+        let input = "<=".as_bytes();
+        assert_eq!(Token::tokenize(input, 0), Ok(vec![Token::new(TokenKind::EqualSmall, Location(0, 1), 0)]));
+
+        let input = "<".as_bytes();
+        assert_eq!(Token::tokenize(input, 0), Ok(vec![Token::new(TokenKind::Small, Location(0, 0), 0)]));
+
+        let input = "ifa".as_bytes();
+        assert_eq!(Token::tokenize(input, 0), Ok(vec![
+            Token::new(TokenKind::Ident("ifa".to_string()), Location(0, 2), 0)
+        ]));
+
+        let input = "if 0123".as_bytes();
+        assert_eq!(Token::tokenize(input, 0), Ok(vec![
+            Token::new(TokenKind::If, Location(0, 1), 0),
+            Token::new(TokenKind::Num(123), Location(3, 6), 0)
+        ]))
     }
 }
